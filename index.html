@@ -172,6 +172,14 @@ nav.tabs a[aria-current="page"] { color: var(--acc); font-weight: 800; }
 .stonebtn { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; align-items: stretch; }
 .stonebtn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--line); }
 
+/* Calendar legend folded away; slim journey bar on Insights */
+.legendfold > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; font-family: var(--hf); font-size: 16px; font-weight: 600; color: var(--acc); cursor: pointer; list-style: none; }
+.legendfold > summary::-webkit-details-marker { display: none; }
+.legendfold > summary::after { content: '›'; font-size: 22px; transition: transform .15s; }
+.legendfold[open] > summary::after { transform: rotate(90deg); }
+.journeybar { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border-radius: 16px; background: var(--acc); color: var(--accInk); text-decoration: none; font-size: 14px; white-space: nowrap; overflow: hidden; font-weight: 700; box-shadow: 0 3px 0 var(--deep); }
+.journeybar b { font-family: var(--hf); font-weight: 600; font-size: 16px; }
+
 </style>
 </head>
 <body>
@@ -3810,7 +3818,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       content.push(optQ(e, 'flow', C.FLOW.map(function (x, i) { return [i, x]; }), 'pm', 3, ''));
       content.push(optQ(e, 'mucus', C.MUCUS.map(function (x, i) { return [i, x]; }), 'pm', 2));
     } else if (step === 2) {
-      ['mood', 'irritability', 'anxiety', 'hopelessness', 'rejection', 'focus', 'impact'].forEach(function (k) { content.push(scaleQ(e, k, 'pm')); });
+      ['mood', 'focus', 'stress', 'irritability', 'anxiety', 'rejection', 'hopelessness', 'impact'].forEach(function (k) { content.push(scaleQ(e, k, 'pm')); });
     } else if (step === 3) {
       var pe = s.physicalItemsEnabled || {}, any = false;
       ['breastTenderness', 'bloating', 'headache', 'jointPain'].forEach(function (k) { if (pe[k] !== false) { any = true; content.push(optQ(e, k, YSN, 'pm', 3)); } });
@@ -3825,7 +3833,6 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       content.push(optQ(e, 'healthy', YSN, 'pm', 3, 'Your definition: “' + s.healthyDefinition + '”', { extra: info }));
       content.push(optQ(e, 'cravings', YSN, 'pm', 3));
     } else if (step === 5) {
-      content.push(scaleQ(e, 'stress', 'pm'));
       content.push(optQ(e, 'dayType', [['work', 'Work'], ['off', 'Off'], ['busy', 'Busy']], 'pm', 3));
       content.push(optQ(e, 'exercise', [[false, 'No'], [true, 'Yes']], 'pm', 2));
       if (UI.settings().medsTracked) content.push(optQ(e, 'medsTaken', [[false, 'No'], [true, 'Yes']], 'pm', 2));
@@ -4270,13 +4277,14 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       rows.map(function (r) { return h('div', { style: { display: 'grid', gridTemplateColumns: '70px 1fr 54px 54px', gap: '8px', padding: '10px 0', borderBottom: '1px solid var(--line)', fontSize: '15px', alignItems: 'center' } }, h('b', null, r[0]), h('span', null, r[1], r[4] ? h('br') : null, r[4] ? h('span', { class: 'tiny', style: { fontWeight: 700 } }, r[4]) : null), h('span', { class: 'center' }, r[2]), h('span', { class: 'center' }, r[3])); }));
     UI.screen(root, { nav: 'calendar', content: [h('header', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-end', padding: '8px 2px 0' } }, h('div', null, h('p', { class: 'h1sub' }, 'Calendar'), h('h1', { class: 'h1' }, D.fmt(first, 'month'))),
       h('div', { class: 'row' }, UI.iconbtn('back', 'Previous month', function () { shift(-1); }), UI.iconbtn('chev', 'Next month', function () { shift(1); }))),
-      UI.card('', grid, leg), panel,
+      UI.card('', grid), panel,
+      h('details', { class: 'card legendfold' }, h('summary', null, 'What do the colours mean?'), leg),
       UI.card('', UI.h2('Cycle history'), rows.length ? table : h('p', { class: 'small' }, 'Your cycles appear here once a period has been logged.'), h('p', { class: 'small' }, 'Onset = days before the period when symptoms usually started.'))] });
   };
 
   // ---------- Insights ----------
   function tabs(sel) {
-    return h('div', { class: 'seg', role: 'tablist' }, [['patterns', 'Patterns'], ['connections', 'Connections'], ['helps', 'Helps'], ['moon', 'More']].map(function (x) {
+    return h('div', { class: 'seg', role: 'tablist' }, [['patterns', 'Patterns'], ['helps', 'Helps'], ['connections', 'Connections'], ['moon', 'More']].map(function (x) {
       return h('button', { type: 'button', role: 'tab', 'aria-selected': x[0] === sel ? 'true' : 'false', class: x[0] === sel ? 'on' : '', onclick: function () { UI.go('insights/' + x[0]); } }, x[1]);
     }));
   }
@@ -4295,9 +4303,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   }
   function journeyEntry(R) {
     var j = A.journey(R, UI.cache());
-    return h('a', { href: '#journey', style: { display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px', borderRadius: '24px', background: 'var(--acc)', color: 'var(--accInk)', textDecoration: 'none', boxShadow: '0 4px 0 var(--deep)' } },
-      h('span', { style: { width: '44px', height: '44px', flex: 'none', borderRadius: '14px', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, UI.icon('spark', 24)),
-      h('span', { class: 'col grow', style: { gap: '2px' } }, h('span', { style: { fontFamily: 'var(--hf)', fontSize: '19px', fontWeight: 600 } }, 'Your journey'), h('span', { style: { fontSize: '14px', fontWeight: 700 } }, j.nMs + ' milestone' + (j.nMs === 1 ? '' : 's') + ' · ' + j.nDisc + ' of ' + j.discoveries.length + ' discoveries')), UI.icon('chev', 22));
+    return h('a', { href: '#journey', class: 'journeybar' }, UI.icon('spark', 20),
+      h('span', { class: 'grow' }, h('b', null, 'Your journey'), ' · ' + j.nMs + ' milestone' + (j.nMs === 1 ? '' : 's') + ' · ' + j.nDisc + '/' + j.discoveries.length + ' discoveries'), UI.icon('chev', 18));
   }
   var GROUP_COL = { cycle: 'var(--acc)', sleep: '#7FB2C9', stress: '#E08A4A', eating: '#9C7BC0', meds: '#D27A8A', daytype: '#C9B458', exercise: '#8CA0AA', early: '#5FA58A', carry: '#A9B4BA', moon: '#6C7A82' };
   function profileChart(R, item) {
@@ -4399,6 +4406,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
           h('p', { class: 'small' }, ia.coverage < 0.7 ? 'The ranges are a bit too narrow right now (aim: about 80%).' : ia.coverage > 0.9 ? 'The ranges are a bit too wide right now (aim: about 80%).' : 'The ranges look about right (aim: about 80%).')]
           : h('p', { class: 'small' }, UI.isDemo() && UI.state.patternsRunning ? 'Calculating…' : 'Appears after a few weeks of forecasts.')));
     }
+    if (tab === 'patterns' || tab === 'moon') content.push(UI.card('', UI.h2('Doctor report', null, 'print'), h('p', { class: 'small' }, 'A printable summary of your cycles and symptoms to bring to an appointment. Notes are never included.'),
+      UI.btn('Make a doctor report', function () { UI.go('report'); }, 'primary', 'print')));
     content.push(h('p', { class: 'small' }, DISCLAIMER));
     UI.screen(root, { nav: 'insights', content: content });
     UI.runPatterns();
@@ -4454,16 +4463,15 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var content = [h('header', { style: { padding: '8px 2px 0' } }, h('p', { class: 'h1sub' }, 'More'), h('h1', { class: 'h1' }, 'Settings')),
       group('Check-ins', UI.toggle('Morning check-in', s.morningEnabled, null, function (v) { UI.saveSettings({ morningEnabled: v }); }), UI.toggle('Track medication', s.medsTracked, 'Just whether you took it. Yes or no.', function (v) { UI.saveSettings({ medsTracked: v }); }),
         item('Physical symptoms', Object.keys(s.physicalItemsEnabled).filter(function (k) { return s.physicalItemsEnabled[k]; }).length + ' of 4', '#more/physical'), item('Healthy eating definition', null, '#more/healthy'), item('Reminders', s.reminderMorning + ' · ' + s.reminderEvening, '#reminders')),
-      group('Support', UI.toggle('Support messages', s.supportEnabled, 'Off: no support panel, alert or tip. When on, the app offers helpline details if hopelessness is high.', function (v) { UI.saveSettings({ supportEnabled: v }); }), item('Country & helpline', C.COUNTRIES[s.country] || s.country, '#more/country')),
-      group('Appearance', h('div', { style: { padding: '8px 0' } }, UI.seg([['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], s.theme, function (v) { UI.saveSettings({ theme: v }); UI.theme(); UI.rerender(); })),
-        UI.toggle('Moon on calendar', s.showMoonOnCalendar, null, function (v) { UI.saveSettings({ showMoonOnCalendar: v }); })),
       group('Tips & plans', UI.toggle('Show tips', s.tipsEnabled, null, function (v) { UI.saveSettings({ tipsEnabled: v }); }),
         h('div', { class: 'row', style: { justifyContent: 'space-between', minHeight: '56px' } }, h('b', null, 'Tips per plan'), h('div', { style: { width: '150px' } }, UI.seg([[2, '2'], [3, '3'], [4, '4']], s.tipsPerPlan, function (v) { UI.saveSettings({ tipsPerPlan: v }); UI.rerender(); }))),
         item('My own tips', String((s.customTips || []).length), '#more/customtips'), item('Hidden tips', String((s.hiddenTips || []).length), '#more/hidden')),
       group('Stone of the day', item('Stones & collection', s.stonesEnabled ? 'on · ' + { all: 'all stones', ownedFirst: 'my stones first', ownedOnly: 'only mine' }[s.stoneMode] : 'off', '#more/stones')),
       group('Data & account', item('Data & backup', null, '#more/data'), demo ? null : item('Account & PIN', acc ? acc.username : '', '#more/account'),
-        demo ? null : h('div', { class: 'col', style: { padding: '12px 0', borderBottom: '1px solid var(--line)' } }, h('b', null, 'Auto-lock: ask for your PIN again after'), UI.seg([[1, '1 min'], [5, '5 min'], [15, '15 min'], [30, '30 min']], s.autoLockMinutes, function (v) { UI.saveSettings({ autoLockMinutes: v }); UI.rerender(); })),
-        item('Doctor report', null, '#report')),
+        demo ? null : h('div', { class: 'col', style: { padding: '12px 0', borderBottom: '1px solid var(--line)' } }, h('b', null, 'Auto-lock: ask for your PIN again after'), UI.seg([[1, '1 min'], [5, '5 min'], [15, '15 min'], [30, '30 min']], s.autoLockMinutes, function (v) { UI.saveSettings({ autoLockMinutes: v }); UI.rerender(); }))),
+      group('Support', UI.toggle('Support messages', s.supportEnabled, 'Off: no support panel, alert or tip. When on, the app offers helpline details if hopelessness is high.', function (v) { UI.saveSettings({ supportEnabled: v }); }), item('Country & helpline', C.COUNTRIES[s.country] || s.country, '#more/country')),
+      group('Appearance', h('div', { style: { padding: '8px 0' } }, UI.seg([['system', 'System'], ['light', 'Light'], ['dark', 'Dark']], s.theme, function (v) { UI.saveSettings({ theme: v }); UI.theme(); UI.rerender(); })),
+        UI.toggle('Moon on calendar', s.showMoonOnCalendar, null, function (v) { UI.saveSettings({ showMoonOnCalendar: v }); })),
       group('Help', demo ? item('Leave demo mode', null, null, function () { ST.leaveDemo().then(function () { UI.invalidate(); UI.go(ST.account && ST.account.pinWrap ? 'unlock' : 'welcome'); }); })
         : item('Try demo mode', null, null, function () { if (confirm('Demo mode shows example data. Your own data stays locked and safe. Continue?')) { ST.lock(); ST.startDemo(false).then(function () { UI.invalidate(); UI.go('today'); }); } }),
         item('About', 'version ' + TS.VERSION, '#more/about'))];
@@ -4625,7 +4633,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
         h('p', { class: 'small' }, sel.length ? D.fmt(sel[0].start) + ' – ' + D.fmt(D.add(sel[sel.length - 1].next, -1), 'year') + ' · ' + sel.length + ' completed cycle' + (sel.length === 1 ? '' : 's') : 'No completed cycles yet. The report needs at least one.')),
       UI.card('', UI.label('Include'), chk('charts', 'Daily symptom charts per cycle'), chk('pm', 'Premenstrual pattern check'), chk('meds', 'Medication days'), chk('conn', 'Confirmed connections (top 5)'), chk('must', 'Must-do completion by phase')),
       h('div', { style: { flex: 1 } }), UI.btn('Preview and print', function () { UI.go('report/print'); }, 'primary big', 'print', sel.length ? null : { disabled: true }),
-      h('p', { class: 'small center' }, 'On a phone: choose Print, then share or save as PDF.')], 'more');
+      h('p', { class: 'small center' }, 'On a phone: choose Print, then share or save as PDF.')], 'insights');
   };
   function printView(root, R, st) {
     var sel = R.cy.validCycles.slice(-st.n), core = [['irritability', 'Irritability'], ['anxiety', 'Anxiety / overwhelm'], ['hopelessness', 'Hopelessness'], ['rejection', 'Rejection sensitivity'], ['mood', 'Mood (lower = worse)'], ['impact', 'Impact on daily life']];
