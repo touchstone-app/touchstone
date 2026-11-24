@@ -488,6 +488,19 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   C.TIP_CATEGORIES.forEach(function (cat) {
     C.influences['usedTip_' + cat] = { icon: 'tip', group: 'tips', bin: true, yes: 'days you used a ' + cat + ' tip', no: 'other days', yesShort: 'Used a ' + cat + ' tip', noShort: 'Other days' };
   });
+  // "Anything good today?" chips (evening, full check-in). Each one is a yes/no influence in pattern search.
+  C.GOOD = [
+    ['outside', 'Time outside', '🌳', 'days you spent time outside'],
+    ['people', 'Time with someone I like', '🫂', 'days with time with someone you like'],
+    ['laughed', 'Laughed', '😂', 'days you laughed'],
+    ['rest', 'Real rest (not scrolling)', '🛋️', 'days with real rest'],
+    ['enjoy', 'Did something I enjoy', '🎨', 'days you did something you enjoy'],
+    ['calm', 'A calm moment', '🧘', 'days with a calm moment'],
+    ['boundary', 'Said no / kept a boundary', '🙅', 'days you said no or kept a boundary'],
+    ['proud', 'Felt proud of something', '🏆', 'days you felt proud of something']];
+  C.GOOD.forEach(function (g) {
+    C.influences['good_' + g[0]] = { icon: 'spark', group: 'good', bin: true, good: true, yes: g[3], no: 'other days', yesShort: g[1], noShort: 'Other days' };
+  });
   C.lagWords = ['the same day', 'the next day', 'two days later'];
   C.lagShort = ['same day', 'next day', 'after 2 days'];
 
@@ -851,6 +864,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       var cat = v.slice(8), lib = TS.tips && TS.tips.byId;
       return e.tipsUsed.some(function (id) { var t = lib && lib(id); return t && t.category === cat; }) ? 1 : 0;
     }
+    if (v.indexOf('good_') === 0) return e && Array.isArray(e.good) ? (e.good.indexOf(v.slice(5)) >= 0 ? 1 : 0) : undefined;
     if (v.indexOf('moon') === 0) return undefined; // moon handled separately (TS.moon)
     if (!e) return undefined;
     var x = e[v];
@@ -1334,7 +1348,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
 
   function kindOf(x) {
     if (x.indexOf('moon') === 0) return x === 'moonIllum' ? 'cont' : 'bin';
-    if (x.indexOf('usedTip_') === 0 || x === 'isWork' || x === 'isBusy') return 'bin';
+    if (x.indexOf('usedTip_') === 0 || x.indexOf('good_') === 0 || x === 'isWork' || x === 'isBusy') return 'bin';
     var it = C.items[x]; if (!it) return 'bin';
     if (it.type === 'bool') return 'bin';
     if (it.type === 'ysn') return 'ysn';
@@ -1342,10 +1356,12 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   }
   CN.kindOf = kindOf;
 
-  var SAME_THING = { healthyEating: 'eat', properMeal: 'eat', sleepHours: 'sleep', sleepQuality: 'sleep', mustDone: 'plan', wantDone: 'plan' };
+  var GOOD_Y = { mood: 1, moodAM: 1, irritability: 1, anxiety: 1, hopelessness: 1, rejection: 1, stress: 1, focus: 1, energyAM: 1, sleepQuality: 1, impact: 1 };
+  var SAME_THING = { good_calm: 'calm', stress: 'calm', healthyEating: 'eat', properMeal: 'eat', sleepHours: 'sleep', sleepQuality: 'sleep', mustDone: 'plan', wantDone: 'plan' };
   CN.influenceList = function () {
     var out = BASE_INF.slice();
     C.TIP_CATEGORIES.forEach(function (c) { out.push('usedTip_' + c); });
+    C.GOOD.forEach(function (g) { out.push('good_' + g[0]); });
     C.OUTCOMES.forEach(function (o) { if (out.indexOf(o) < 0) out.push(o); });
     return out;
   };
@@ -1356,7 +1372,9 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     if (SAME_THING[x] && SAME_THING[x] === SAME_THING[y]) return [1, 2];
     var isMoon = x.indexOf('moon') === 0;
     if (isMoon) return [0, 1];
-    var baseInf = BASE_INF.indexOf(x) >= 0 || x.indexOf('usedTip_') === 0;
+    // good things: only tested against how you feel, energy, focus, sleep and impact, the same or the next day
+    if (x.indexOf('good_') === 0) return GOOD_Y[y] ? (MORNING[y] ? [1] : [0, 1]) : [];
+    var baseInf = BASE_INF.indexOf(x) >= 0 || x.indexOf('usedTip_') === 0 || x.indexOf('good_') === 0;
     var lags = [1, 2];
     if (MORNING[y]) { if (MORNING_KNOWN[x]) lags.unshift(0); }
     else if (baseInf || MORNING[x]) lags.unshift(0);
@@ -2391,8 +2409,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     if (!R.conn || !R.conn.cards) return out;
     R.conn.cards.forEach(function (c) {
       if (c.status !== 'confirmed') return;
-      var isTip = c.x.indexOf('usedTip_') === 0;
-      if (!mod[c.x] && !isTip) return;
+      var isTip = c.x.indexOf('usedTip_') === 0, isGood = c.x.indexOf('good_') === 0;
+      if (!mod[c.x] && !isTip && !isGood) return;
       var it = C.items[c.y], inf = C.influences[c.x];
       var better = inf && inf.bin ? (inf.yes) : (c.x === 'sleepHours' ? 'nights with more sleep' : 'better-sleep nights');
       var line = cap(better) + ' go with <strong>' + it.better + ' ' + it.name + '</strong>' + (c.lag > 0 || inf && inf.night ? ' ' + c.timingWords : '') + ' (about ' + Math.abs(c.eff).toFixed(1) + (C.isYSN(c.y) ? '' : ' points') + ').';
@@ -2986,7 +3004,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var pe = settings.physicalItemsEnabled || {};
     ['breastTenderness', 'bloating', 'headache', 'jointPain'].forEach(function (k) { if (pe[k] !== false) cols.push({ key: k, head: C.items[k].short, w: 12 }); });
     [['appetite', 'Appetite'], ['properMeal', 'Proper meal'], ['healthy', 'Ate healthy'], ['cravings', 'Strong cravings'], ['stress', 'Stress (1–6, higher = worse)'],
-     ['dayType', 'Day type'], ['exercise', 'Exercise'], ['tags', 'Tags'], ['note', 'Note'], ['mustDo', 'Must-do'], ['mustDone', 'Must-do done'], ['wantDo', 'Like-to-do'], ['wantDone', 'Like-to-do done'],
+     ['dayType', 'Day type'], ['exercise', 'Exercise'], ['tags', 'Tags'], ['good', 'Good things'], ['note', 'Note'], ['mustDo', 'Must-do'], ['mustDone', 'Must-do done'], ['wantDo', 'Like-to-do'], ['wantDone', 'Like-to-do done'],
      ['eveningMode', 'Evening check-in'], ['late', 'Filled in late']].forEach(function (x) { cols.push({ key: x[0], head: x[1], w: ['note', 'mustDo', 'wantDo'].indexOf(x[0]) >= 0 ? 26 : x[0] === 'stress' ? 16 : 11 }); });
     return cols;
   };
@@ -3001,6 +3019,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       case 'cday': return extra.cday ? { num: extra.cday } : { text: '' };
       case 'phase': return { text: PHASE[extra.phase] || '' };
       case 'tags': return { text: (v || []).map(function (t) { return C.TAGS[t]; }).filter(Boolean).join(', ') };
+      case 'good': return { text: Array.isArray(v) ? (v.length ? v.map(function (g) { var x = C.GOOD.filter(function (z) { return z[0] === g; })[0]; return x ? x[1] : null; }).filter(Boolean).join(', ') : 'none') : '' };
       case 'note': case 'mustDo': case 'wantDo': return { text: v || '' };
       case 'eveningMode': return { text: v === 'short' ? 'Short' : (e.mood !== undefined || e.irritability !== undefined ? 'Full' : '') };
       case 'late': return { text: e.lateMorning || e.lateEvening ? 'Yes' : '' };
@@ -3779,6 +3798,26 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     return box;
   };
 
+  // "Anything good today?" — asked last, after all ratings, so it can't colour them.
+  // full: seeing it and picking nothing = "none today"; short: only saved once something is tapped.
+  function goodChips(e, full) {
+    if (full && !Array.isArray(e.good)) { e.good = []; commit(e, 'pm'); }
+    var cur = Array.isArray(e.good) ? e.good : [];
+    return h('div', { class: 'chips' }, C.GOOD.map(function (g) {
+      var on = cur.indexOf(g[0]) >= 0;
+      return h('button', { type: 'button', class: 'chip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', onclick: function () {
+        var list = (Array.isArray(e.good) ? e.good : []).slice(), k = list.indexOf(g[0]);
+        if (k >= 0) list.splice(k, 1); else list.push(g[0]);
+        e.good = list; commit(e, 'pm'); UI.rerender(); } }, h('span', { 'aria-hidden': 'true' }, g[2]), ' ' + g[1]);
+    }));
+  }
+  function goodCard(e) { return UI.card('', UI.question('Anything good today?', 'Tap all that fit. Fine to skip if nothing comes to mind.', goodChips(e, true))); }
+  function goodFold(e) {
+    var open = UI.state.shortGood || (Array.isArray(e.good) && e.good.length > 0);
+    if (!open) return h('button', { type: 'button', class: 'linkbtn', style: { alignSelf: 'flex-start', minHeight: '48px' }, onclick: function () { UI.state.shortGood = true; UI.rerender(); } }, 'Anything good today? (optional)', UI.icon('chev', 16));
+    return UI.card('', UI.question('Anything good today?', 'Optional. Tap all that fit.', goodChips(e, false)));
+  }
+
   // ---------- evening chooser ----------
   UI.screens.evening = function (root, p) {
     var date = UI.paramDate(p[0]);
@@ -3803,8 +3842,9 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       optQ(e, 'flow', C.FLOW.map(function (x, i) { return [i, x]; }), 'pm', 3, '', { after: function () { e.eveningMode = e.eveningMode || 'short'; commit(e, 'pm'); } }),
       scaleQ(e, 'mood', 'pm'), scaleQ(e, 'hopelessness', 'pm'),
       UI.settings().medsTracked ? optQ(e, 'medsTaken', [[false, 'No'], [true, 'Yes']], 'pm', 2) : null,
+      goodFold(e),
       h('button', { class: 'linkbtn', style: { alignSelf: 'center' }, type: 'button', onclick: function () { UI.go('efull/' + date + '/1'); } }, 'Switch to the full check-in')];
-    UI.screen(root, { content: content, bottom: [UI.btn('Save', function () { if (!e.eveningMode) e.eveningMode = 'short'; commit(e, 'pm'); UI.invalidate(); UI.go('saved/' + date); }, 'primary big')] });
+    UI.screen(root, { content: content, bottom: [UI.btn('Save', function () { UI.state.shortGood = false; if (!e.eveningMode) e.eveningMode = 'short'; commit(e, 'pm'); UI.invalidate(); UI.go('saved/' + date); }, 'primary big')] });
   };
 
   // ---------- full evening (6 steps) ----------
@@ -3845,6 +3885,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
         })), note))));
     } else if (step === 6) {
       content = content.concat(wrapUp(e, date));
+      content.push(goodCard(e));
     }
     var next = step < 6 ? UI.btn('Next', function () { commit(e, 'pm'); UI.go('efull/' + date + '/' + (step + 1)); }, 'primary big')
       : UI.btn('Save', function () { commit(e, 'pm'); UI.invalidate(); UI.go('saved/' + date); }, 'primary big');
