@@ -701,7 +701,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     if (!nums.length) { res.noData = true; res.lastStart = null; return finish(res, entries, todayN); }
     var lastN = nums[nums.length - 1];
     res.lastStart = D.fromNum(lastN); res.lastStartN = lastN;
-    var Pcal = lastN + mu;
+    var Pcal = lastN + mu; res.Pcal0 = Math.round(lastN + mu); // originally expected start, kept when the period is late
     res.anyDayNow = false;
     if (todayN > Pcal) { Pcal = todayN + 1; res.anyDayNow = true; }
     res.Pcal = Pcal;
@@ -2027,7 +2027,18 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       info.startsIn = s - tN; if (info.inWindow) info.dayN = Math.max(1, tN - s + 1);
       // window that started last cycle and runs into the period
       var pos = ctx.pos[t] || CY.position(R.cy, t);
-      if (info.inWindow && pos.f !== null && pos.f <= win.endF && R.cy.lastStartN !== undefined && tN - R.cy.lastStartN < 10) info.dayN = Math.round(-win.muOn) + pos.f;
+      info.endN = win.endN;
+      if (info.inWindow && pos.f !== null && pos.f <= win.endF && R.cy.lastStartN !== undefined && tN - R.cy.lastStartN < 10) {
+        // the window that began before this period and runs into its first days: it ends this cycle, not next
+        info.dayN = Math.round(-win.muOn) + pos.f;
+        info.endN = R.cy.lastStartN + win.endF - 1;
+      } else if (info.inWindow && R.cy.anyDayNow && R.cy.Pcal0 !== undefined) {
+        // period is late: count from when this window was expected to begin
+        info.dayN = Math.max(1, tN - (R.cy.Pcal0 + Math.round(win.muOn)) + 1);
+        info.late = tN - R.cy.Pcal0;
+        // more than a week late: a start was probably not logged, so don't claim a window
+        if (info.late > 7) { info.inWindow = false; info.dayN = null; info.unsure = true; }
+      }
     }
     return info;
   };
@@ -2045,7 +2056,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       st.ovulation = D.fromNum(Math.round(cy.ovulationN)); st.ovulationLogged = cy.ovulationLogged;
       var w = A.windowInfo(R, t); st.window = w;
       st.windowStart = D.fromNum(Math.round(R.win.startN)); st.windowRange = [D.fromNum(R.win.startRange[0]), D.fromNum(R.win.startRange[1])];
-      st.windowEnd = D.fromNum(Math.round(R.win.endN));
+      st.windowEnd = D.fromNum(Math.round(w.endN !== undefined ? w.endN : R.win.endN));
       st.windowPersonal = R.win.personal;
     }
     // first-run estimate with no period data
@@ -2118,7 +2129,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
         add({ id: 'windowAhead', priority: 'normal', dismissKey: 'windowAhead:' + cycleKey, bold: 'Your PMDD window likely starts in ' + w.startsIn + ' day' + (w.startsIn === 1 ? '' : 's') + ' (' + rangeTxt([st.windowRange[0] > t ? st.windowRange[0] : D.add(t, 1), st.windowRange[1]]) + ').', text: 'A good moment to plan a lighter week.' });
       if (w.inWindow) {
         if (w.dayN === 1) delete dis['windowAhead:' + cycleKey];
-        add({ id: 'windowNow', priority: 'normal', dismissKey: 'windowNow:' + t, bold: "You're probably in your PMDD window now (day " + (w.dayN || 1) + ').', text: 'Be gentle with yourself. It usually eases around ' + D.fmt(st.windowEnd) + '.' });
+        add({ id: 'windowNow', priority: 'normal', dismissKey: 'windowNow:' + t, bold: "You're probably in your PMDD window now (day " + (w.dayN || 1) + ').', text: 'Be gentle with yourself. ' + (w.late > 0 ? 'It usually eases in the first days of your period.' : 'It usually eases around ' + D.fmt(st.windowEnd) + '.') });
       }
       if (st.periodIn >= 1 && st.periodIn <= 3 && !st.anyDayNow) add({ id: 'periodSoon', priority: 'low', dismissKey: 'periodSoon:' + st.nextPeriod, text: 'Your period is likely in ' + st.periodIn + ' day' + (st.periodIn === 1 ? '' : 's') + '.' });
     }
