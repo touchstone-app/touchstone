@@ -157,6 +157,17 @@ nav.tabs a[aria-current="page"] { color: var(--acc); font-weight: 800; }
 .report .r { text-align: right; } .report .foot { border-top: 1px solid #D5E1E8; padding-top: 10px; margin-top: 18px; font-size: 9pt; color: #4A5F6B; } .report .drsp { display: grid; grid-template-columns: 120px repeat(3, 1fr); gap: 6px; align-items: center; }
 @media print { body { background: #fff; } #app > :not(.report), nav, .bottombar, .demo, .noprint { display: none !important; } #app { max-width: none; } .report { padding: 0; } .report section { break-inside: avoid; } @page { size: A4; margin: 14mm; } }
 
+/* Today: check-in card (due) and done line */
+.checkincta { display: flex; align-items: center; gap: 14px; width: 100%; padding: 18px; border: 0; border-radius: 24px; background: var(--acc); color: var(--accInk); box-shadow: 0 4px 0 var(--deep); font-family: var(--bf); cursor: pointer; }
+.checkincta .ic { width: 48px; height: 48px; flex: none; border-radius: 16px; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; }
+.checkincta .t { font-family: var(--hf); font-size: 19px; font-weight: 600; }
+.checkincta .s { font-size: 14px; font-weight: 700; opacity: .9; }
+.checkincta .go { flex: none; min-height: 48px; padding: 0 16px; border-radius: 18px; background: var(--card); color: var(--acc); font-family: var(--hf); font-size: 17px; font-weight: 600; display: flex; align-items: center; }
+.checkincta:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--deep); }
+.doneline { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-height: 48px; padding: 0 16px; border-radius: 18px; background: var(--tint); font-size: 15px; font-weight: 800; }
+.doneline .linkbtn { min-height: 44px; font-weight: 800; }
+.todo.flat { background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
+
 </style>
 </head>
 <body>
@@ -355,7 +366,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     sleepHours: { label: 'Hours slept', help: 'Roughly is fine', type: 'hours', when: 'am', dir: 'neutral', name: 'sleep', short: 'Sleep (hours)' },
     energyAM: { label: 'Energy right now', help: 'How much energy you woke up with', type: 'well6', when: 'am', dir: 'better', name: 'morning energy', better: 'higher', worse: 'lower', short: 'Morning energy' },
     moodAM: { label: 'Mood right now', help: 'Your mood on waking', type: 'well6', when: 'am', dir: 'better', name: 'morning mood', better: 'better', worse: 'lower', short: 'Morning mood' },
-    medsTaken: { label: 'Meds taken?', help: '', type: 'bool', when: 'am', dir: 'neutral', name: 'meds', short: 'Meds taken' },
+    medsTaken: { label: 'Did you take your meds today?', help: '', type: 'bool', when: 'pm', dir: 'neutral', name: 'meds', short: 'Meds taken' },
     flow: { label: 'Period today?', help: '', type: 'flow', when: 'pm', dir: 'neutral', short: 'Period' },
     mucus: { label: 'Cervical mucus', help: 'Egg-white = clear, stretchy and slippery, a sign ovulation is close', type: 'mucus', when: 'pm', dir: 'neutral', short: 'Cervical mucus' },
     mood: { label: 'Mood today', help: 'How the day felt overall', type: 'well6', when: 'pm', dir: 'better', name: 'mood', better: 'better', worse: 'lower', short: 'Mood', core: true },
@@ -383,7 +394,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   // Outcome items (spec §7)
   C.OUTCOMES = ['moodAM', 'energyAM', 'sleepQuality', 'mood', 'irritability', 'anxiety', 'hopelessness', 'rejection', 'focus', 'impact',
     'breastTenderness', 'bloating', 'headache', 'jointPain', 'appetite', 'properMeal', 'healthy', 'cravings', 'stress', 'mustDone', 'wantDone'];
-  C.MORNING_ITEMS = ['moodAM', 'energyAM', 'sleepQuality', 'sleepHours', 'medsTaken'];
+  C.MORNING_ITEMS = ['moodAM', 'energyAM', 'sleepQuality', 'sleepHours'];
   C.CORE = ['irritability', 'anxiety', 'hopelessness', 'rejection', 'mood', 'impact'];
   C.CORE_MOOD = ['irritability', 'anxiety', 'hopelessness', 'rejection', 'mood'];
   C.KEY_FORECAST = ['mood', 'irritability', 'focus', 'energyAM', 'cravings', 'impact'];
@@ -803,7 +814,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   var LAMBDA = 0.85, KSHRINK = 3, ALPHAS = [0.1, 0.3, 1, 3, 10, 30, 100];
   var MORNING_TARGETS = { moodAM: 1, energyAM: 1, sleepQuality: 1 };
   var L0 = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'exercise', 'medsTaken', 'isWork', 'isBusy'];
-  var L0_MORNING = ['sleepHours', 'sleepQuality', 'medsTaken'];
+  var L0_MORNING = ['sleepHours', 'sleepQuality']; // meds are asked in the evening, so not known for morning items
   var LAGGED = ['sleepHours', 'sleepQuality', 'stress', 'properMeal'];
   var EW_EXCLUDE = { mustDone: 1, wantDone: 1 };
   var GROUP = { sleepHours: 'sleep', sleepQuality: 'sleep', sleep3: 'sleep', stress: 'stress', properMeal: 'eating', healthy: 'eating', appetite: 'eating',
@@ -1116,7 +1127,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       if (w >= 0.5 && worseDir) return 'PMDD window';
       if (ph.phase === 'follicular' && !worseDir) return 'follicular phase — usually your better days';
       if (ph.phase === 'ovulatory') return 'around ovulation';
-      return 'your ' + it.name + ' is usually ' + (worseDir ? it.worse : it.better) + ' around now';
+      if (C.isYSN(item)) { var upY = it.dir === 'neutral' ? r.value > 0 : it.dir === 'worse' ? worseDir : !worseDir; return it.short.toLowerCase() + ' usually ' + (upY ? 'more' : 'less') + ' likely around now'; }
+      return 'usually ' + (worseDir ? it.worse : it.better) + ' ' + it.name + ' around now';
     }
     var base = r.base, lag = r.lag, x = rawVal(ctx.entries, base, D.add(t, -lag));
     var inf = C.items[base];
@@ -1128,7 +1140,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     }
     var whenTxt = lag === 0 ? 'today' : lag === 1 ? 'yesterday' : 'two days ago';
     if (base === 'stress') return (S.isNum(x) && x >= 4 ? 'stressful day ' : 'calmer day ') + whenTxt;
-    if (base === 'properMeal') return (S.isNum(x) && x === 0 ? 'no proper meal ' : S.isNum(x) && x === 1 ? 'only a partly proper meal ' : 'proper meal ') + (lag === 0 ? 'yet today' : whenTxt);
+    if (base === 'properMeal') return (S.isNum(x) && x === 0 ? 'no proper meal ' : S.isNum(x) && x === 1 ? 'only a partly proper meal ' : 'a proper meal ') + (lag === 0 ? (S.isNum(x) && x === 2 ? 'already today' : 'yet today') : whenTxt);
     if (base === 'isWork') return lag === 0 ? 'workday' : 'workday ' + whenTxt;
     if (base === 'isBusy') return lag === 0 ? 'busy day' : 'busy day ' + whenTxt;
     if (base === 'exercise') return (x ? 'exercise ' : 'no exercise ') + whenTxt;
@@ -1138,7 +1150,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     if (inf && inf.name) {
       var xb = C.badness(base, x), avgB = C.badness(base, ctx.__avgs && ctx.__avgs[base]);
       var w2 = S.isNum(xb) && S.isNum(avgB) ? xb > avgB : true;
-      return 'your ' + inf.name + ' was ' + (w2 ? inf.worse : inf.better) + ' ' + (lag === 0 ? 'this morning' : whenTxt);
+      return (w2 ? inf.worse : inf.better) + ' ' + inf.name + ' ' + (lag === 0 ? (inf.when === 'am' ? 'this morning' : 'today') : whenTxt);
     }
     return 'other influences';
   };
@@ -1306,7 +1318,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   var CN = TS.conn = {};
   var BASE_INF = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'cravings', 'exercise', 'medsTaken', 'isWork', 'isBusy'];
   var MORNING = { moodAM: 1, energyAM: 1, sleepQuality: 1 };
-  var MORNING_KNOWN = { sleepHours: 1, sleepQuality: 1, medsTaken: 1 };
+  var MORNING_KNOWN = { sleepHours: 1, sleepQuality: 1 };
 
   function kindOf(x) {
     if (x.indexOf('moon') === 0) return x === 'moonIllum' ? 'cont' : 'bin';
@@ -1934,6 +1946,46 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     s('peridot', 'Peridot', ['#a3c43a'], 'renewal and a fresh outlook', ['joy', 'energy'], 'olive green'),
     s('pyrite', 'Pyrite', ['#c9a94a'], 'drive, willpower and getting things done', ['motivation', 'energy'], 'brassy gold')
   ];
+  // Factual background (geology, history, care), kept apart from the traditional meanings above.
+  // h = Mohs hardness (1 talc … 10 diamond); found = main sources; fact = one plain fact; care = how to look after it.
+  function i(found, h, fact, care) { return { found: found, h: h, fact: fact, care: care }; }
+  SN.INFO = {
+    'amethyst': i('Brazil, Uruguay and Zambia', '7', 'A purple form of quartz. Its colour comes from traces of iron combined with natural radiation in the rock.', 'Its colour can fade in strong sunlight, so keep it out of a sunny window.'),
+    'rose-quartz': i('Brazil, Madagascar and South Africa', '7', 'A pink form of quartz that almost always grows as solid chunks; well-formed rose quartz crystals are rare.', 'Can slowly fade in strong sunlight.'),
+    'moonstone': i('Sri Lanka and India', '6–6.5', 'A feldspar. The floating blue-white glow comes from light scattering between very thin layers inside the stone.', 'Fairly soft and can crack if knocked. Clean with mild soapy water.'),
+    'carnelian': i('India, Brazil and Uruguay', '6.5–7', 'A form of chalcedony coloured by iron. It was used for seal rings in ancient Rome because hot wax doesn\'t stick to it.', 'Tough and easy to care for: water and a soft cloth.'),
+    'red-jasper': i('India, South Africa and Brazil', '6.5–7', 'An opaque quartz rock. Its red comes from hematite, the same iron mineral that colours rust.', 'Very durable. Water and a soft cloth are all it needs.'),
+    'bloodstone': i('India', '6.5–7', 'Dark green chalcedony with red spots of iron oxide. Its old name, heliotrope, is Greek for "turning towards the sun".', 'Durable. Clean with water and a soft cloth.'),
+    'smoky-quartz': i('Brazil, Switzerland and Scotland', '7', 'Quartz darkened by natural radiation deep underground. A Scottish variety, cairngorm, is Scotland\'s national gem.', 'Can fade with strong sunlight or heat.'),
+    'black-tourmaline': i('Brazil, Pakistan and several African countries', '7–7.5', 'Black tourmaline (schorl) picks up a small electric charge when it is warmed or squeezed.', 'Hard, but crystals can split along their length if dropped.'),
+    'clear-quartz': i('All over the world, especially Brazil and Arkansas (USA)', '7', 'Quartz vibrates at a very steady rate when electricity passes through it, which is why it keeps time in watches.', 'Durable. Water and a soft cloth.'),
+    'fluorite': i('China, Mexico and Derbyshire, England', '4', 'Fluorite gave its name to fluorescence: many pieces glow under ultraviolet light.', 'Soft and splits easily. Avoid knocks and long spells in sunlight.'),
+    'citrine': i('Brazil', '7', 'A yellow form of quartz. Natural citrine is rare; much of what is sold is heat-treated amethyst.', 'Can fade in strong sunlight.'),
+    'sunstone': i('India, Norway and Oregon (USA)', '6–6.5', 'A feldspar with tiny flat flakes of copper or hematite that make it glitter. It is Oregon\'s state gem.', 'Can crack if knocked. Mild soapy water.'),
+    'lepidolite': i('Brazil and Madagascar', '2.5–3', 'A lithium-rich mica. The name comes from the Greek for "scale", after its flaky layers.', 'Very soft and flaky. Keep it dry and away from harder stones.'),
+    'blue-lace-agate': i('Namibia and South Africa', '6.5–7', 'A banded chalcedony. The famous Namibian mine that produced the finest pieces has largely closed.', 'Durable; strong sunlight can fade it.'),
+    'howlite': i('California (USA); first found in Nova Scotia, Canada', '3.5', 'Named after Henry How, the chemist who described it in 1868. It is porous, so it is often dyed to look like turquoise.', 'Soft and porous. Keep it away from water, oils and perfume.'),
+    'selenite': i('Mexico and Morocco', '2', 'A clear form of gypsum, soft enough to scratch with a fingernail. Its name comes from Selene, the Greek moon goddess.', 'Dissolves slowly in water. Keep it dry and dust it with a soft brush.'),
+    'labradorite': i('Labrador (Canada), Madagascar and Finland', '6–6.5', 'Named after Labrador, where it was found in 1770. Flashes of blue, green and gold appear only at certain angles.', 'Can crack if knocked. Mild soapy water.'),
+    'garnet': i('India, Sri Lanka, Czechia and several African countries', '6.5–7.5', 'The name comes from the Latin for pomegranate, because small red garnets look like its seeds.', 'Durable. Water and a soft cloth.'),
+    'hematite': i('Brazil, Australia and many other countries', '5.5–6.5', 'The world\'s main iron ore. It looks silver-black, but its powder is blood-red, which gave it its Greek name.', 'Can rust. Keep it dry.'),
+    'green-aventurine': i('India and Brazil', '6.5–7', 'Quartz with tiny flakes of green mica that make it shimmer. The name comes from the Italian "a ventura", "by chance".', 'Durable; strong sunlight can fade it.'),
+    'rhodonite': i('Russia (the Ural Mountains), Sweden, Australia and Peru', '5.5–6.5', 'A manganese mineral. Its name comes from the Greek for "rose", and the black veins are manganese oxide.', 'Avoid strong cleaning products. Mild soapy water.'),
+    'rhodochrosite': i('Argentina, Colorado (USA) and South Africa', '3.5–4', 'A manganese mineral with pink and white bands. It is Argentina\'s national stone.', 'Soft. Keep it away from heat, acids and harder stones.'),
+    'chrysocolla': i('Peru, Chile, Arizona (USA) and Congo', '2–4', 'A copper mineral, which is where the blue-green colour comes from. It often grows mixed with harder quartz.', 'Soft. Keep it dry.'),
+    'unakite': i('The Unaka Mountains (USA), South Africa and China', '6–7', 'A rock, not a single mineral: pink feldspar and green epidote mixed with quartz, named after the mountains where it was found.', 'Durable. Water and a soft cloth.'),
+    'aquamarine': i('Brazil, Nigeria, Madagascar and Pakistan', '7.5–8', 'A blue form of beryl, the same mineral as emerald. The name is Latin for "sea water".', 'Hard and durable. Long, strong sunlight can pale it.'),
+    'amazonite': i('Colorado (USA), Brazil, Russia and Madagascar', '6–6.5', 'A green feldspar named after the Amazon river, even though none has been found there.', 'Can crack if knocked. Mild soapy water.'),
+    'sodalite': i('Canada, Brazil and Namibia', '5.5–6', 'Named after the sodium it contains. A deep blue Canadian variety is known as "Princess Blue".', 'Avoid knocks and strong cleaning products.'),
+    'obsidian': i('Mexico, Iceland, the USA and Armenia', '5–5.5', 'Volcanic glass that cools too fast to form crystals. Its edges can be sharper than steel, so it was used for blades in the Stone Age.', 'Chips easily and broken edges are sharp. Handle gently.'),
+    'prehnite': i('South Africa, Australia and Mali', '6–6.5', 'One of the first minerals named after a person: Hendrik von Prehn, a Dutch officer who brought it from South Africa in the 1700s.', 'Avoid strong cleaning products. Mild soapy water.'),
+    'kunzite': i('Afghanistan, Brazil and California (USA)', '6.5–7', 'A pink form of spodumene, named after George Kunz, a gem expert at Tiffany\'s around 1900.', 'Fades in sunlight, which is why it\'s called an "evening stone". It also splits easily.'),
+    'jade': i('Myanmar, China, New Zealand and Canada', '6–7', 'Two different minerals, nephrite and jadeite, are both called jade. Their interlocking fibres make jade extremely hard to break.', 'Very tough. Water and a soft cloth.'),
+    'peridot': i('Pakistan, Arizona (USA), Myanmar and Egypt', '6.5–7', 'A gem form of olivine, one of the few gems found in meteorites. Olivine has also been found on Mars.', 'Avoid sudden temperature changes and acids.'),
+    'tigers-eye': i('South Africa, Australia and India', '7', 'Quartz that slowly replaced fine mineral fibres. The fibres make a silky band of light that moves as you turn it.', 'Durable. Water and a soft cloth.'),
+    'pyrite': i('Spain and Peru', '6–6.5', 'Known as "fool\'s gold". Its name comes from the Greek for "fire", because it sparks when struck against steel.', 'Keep it dry; damp can tarnish it.')
+  };
+  SN.hardWord = function (h) { var v = parseFloat(String(h).split(/[–-]/).pop()); return v <= 3 ? 'very soft' : v <= 5 ? 'soft' : v < 7 ? 'medium' : 'hard'; };
   var byId = {}; SN.LIB.forEach(function (x) { byId[x.id] = x; });
   SN.byId = function (id) { return byId[id] || null; };
 
@@ -2112,6 +2164,51 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   };
   A.stoneDays = function (entries, id) { var n = 0; for (var d in entries) if (entries[d].stoneId === id) n++; return n; };
 
+  // ---------- Today's forecast card: what stands out compared with your own usual ----------
+  A.FC_GROUPS = [
+    ['heart', 'Mood & feelings', ['moodAM', 'mood', 'irritability', 'anxiety', 'hopelessness', 'rejection', 'stress']],
+    ['target', 'Focus & daily life', ['sleepQuality', 'energyAM', 'focus', 'impact']],
+    ['leaf', 'Body', ['breastTenderness', 'bloating', 'headache', 'jointPain']],
+    ['eat', 'Eating', ['appetite', 'cravings', 'properMeal', 'healthy']]];
+  var FC_ICON = { moodAM: 'heart', mood: 'heart', irritability: 'heart', anxiety: 'heart', hopelessness: 'heart', rejection: 'heart', stress: 'heart', sleepQuality: 'moon', energyAM: 'sun', focus: 'target', impact: 'target', breastTenderness: 'leaf', bloating: 'leaf', headache: 'leaf', jointPain: 'leaf', appetite: 'eat', cravings: 'eat', properMeal: 'eat', healthy: 'eat' };
+  // words for a difference d (on the 1–6 "harder" scale): positive d = harder than usual
+  A.fcWords = function (it, d) {
+    var a = Math.abs(d), dir = C.items[it].dir, ysn = C.isYSN(it);
+    if (!(a >= 0.4)) return 'as usual';
+    var up = dir === 'better' ? d < 0 : d > 0; // is the value itself higher than usual?
+    var w = ysn ? (up ? 'more likely' : 'less likely') : (up ? 'higher' : 'lower');
+    return a < 0.8 ? 'a bit ' + w : a < 1.5 ? w + ' than usual' : 'much ' + w + ' than usual';
+  };
+  A.fcStep = function (d) { return !(Math.abs(d) >= 0.4) ? 2 : d < 0 ? 1 : d < 0.8 ? 3 : d < 1.5 ? 4 : 5; };
+  A.forecastView = function (R, t) {
+    var e = R.entries[t] || {}, pe = R.settings.physicalItemsEnabled || {}, cold = false, rows = {}, ctx = R.built.ctx;
+    A.FC_GROUPS.forEach(function (g) {
+      g[2].forEach(function (it) {
+        if (pe[it] === false) return;
+        if (C.MORNING_ITEMS.indexOf(it) >= 0 && S.isNum(e[it])) return; // you already told us
+        var f = R.forecast[t] && R.forecast[t][it]; if (!f) return;
+        if (f.cold) cold = true;
+        var base = ctx.__avgs ? ctx.__avgs[it] : NaN, d = f.cold || !S.isNum(base) ? 0 : C.badness6(it, f.y) - C.badness6(it, base);
+        if (C.items[it].dir === 'neutral') d = 0; // no "better" or "worse" side
+        rows[it] = { item: it, name: C.items[it].short, f: f, d: d, words: A.fcWords(it, d), step: A.fcStep(d), icon: FC_ICON[it], reason: f.reasonText };
+      });
+    });
+    var all = Object.keys(rows).map(function (k) { return rows[k]; });
+    var good = all.filter(function (r) { return r.d <= -0.8; }).sort(function (a, b) { return a.d - b.d; })[0] || null;
+    var hard = all.filter(function (r) { return r.d >= 0.8; }).sort(function (a, b) { return b.d - a.d; }).slice(0, 2);
+    var shown = hard.map(function (r) { return r.item; }).concat(good ? [good.item] : []);
+    var groups = A.FC_GROUPS.map(function (g) {
+      var items = g[2].filter(function (it) { return rows[it]; }).map(function (it) { return rows[it]; });
+      if (!items.length) return null;
+      var notable = items.filter(function (r) { return r.words !== 'as usual' && shown.indexOf(r.item) < 0; });
+      var summary = notable.length ? notable[0].name + ' ' + notable[0].words + (notable.length > 1 ? ' · +' + (notable.length - 1) + ' more' : '')
+        : items.some(function (r) { return shown.indexOf(r.item) >= 0; }) ? 'Rest as usual' : 'All as usual';
+      return { icon: g[0], title: g[1], items: items, summary: summary };
+    }).filter(Boolean);
+    var morningDone = C.MORNING_ITEMS.some(function (it) { return S.isNum(e[it]); });
+    return { cold: cold, good: good, hard: hard, groups: groups, morningDone: morningDone };
+  };
+
   // ---------- alerts (spec §8) ----------
   A.supportCondition = function (entries, t) {
     var e = entries[t], y = entries[D.add(t, -1)];
@@ -2124,17 +2221,23 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     if (s.supportEnabled && (A.supportCondition(R.entries, t) || A.supportCondition(R.entries, D.add(t, -1)) && (R.entries[t] || {}).hopelessness === undefined))
       out.push({ id: 'support', priority: 'high', text: A.supportText(R), window: st.window && st.window.inWindow });
     if (st.window) {
-      var w = st.window, cycleKey = R.cy.lastStart || 'none';
+      var w = st.window, cycleKey = R.cy.lastStart || 'none', typ = !R.win.personal; // typ: window timing is still the typical estimate
       if (!w.inWindow && w.startsIn >= 1 && w.startsIn <= 5)
-        add({ id: 'windowAhead', priority: 'normal', dismissKey: 'windowAhead:' + cycleKey, bold: 'Your PMDD window likely starts in ' + w.startsIn + ' day' + (w.startsIn === 1 ? '' : 's') + ' (' + rangeTxt([st.windowRange[0] > t ? st.windowRange[0] : D.add(t, 1), st.windowRange[1]]) + ').', text: 'A good moment to plan a lighter week.' });
+        add({ id: 'windowAhead', priority: 'normal', dismissKey: 'windowAhead:' + cycleKey, bold: (typ ? 'Based on typical timing, your PMDD window might start in ' : 'Your PMDD window likely starts in ') + w.startsIn + ' day' + (w.startsIn === 1 ? '' : 's') + ' (' + rangeTxt([st.windowRange[0] > t ? st.windowRange[0] : D.add(t, 1), st.windowRange[1]]) + ').', text: 'A good moment to plan a lighter week.' });
       if (w.inWindow) {
         if (w.dayN === 1) delete dis['windowAhead:' + cycleKey];
-        add({ id: 'windowNow', priority: 'normal', dismissKey: 'windowNow:' + t, bold: "You're probably in your PMDD window now (day " + (w.dayN || 1) + ').', text: 'Be gentle with yourself. ' + (w.late > 0 ? 'It usually eases in the first days of your period.' : 'It usually eases around ' + D.fmt(st.windowEnd) + '.') });
+        add({ id: 'windowNow', priority: 'normal', dismissKey: 'windowNow:' + t, bold: typ ? 'Based on typical timing, this might be your PMDD window.' : "You're probably in your PMDD window now (day " + (w.dayN || 1) + ').',
+          text: (typ ? 'If it is, be gentle with yourself. It often eases ' : 'Be gentle with yourself. It usually eases ') + (w.late > 0 ? 'in the first days of your period.' : 'around ' + D.fmt(st.windowEnd) + '.') + (typ ? ' The app learns your own timing as you check in.' : '') });
       }
       if (st.periodIn >= 1 && st.periodIn <= 3 && !st.anyDayNow) add({ id: 'periodSoon', priority: 'low', dismissKey: 'periodSoon:' + st.nextPeriod, text: 'Your period is likely in ' + st.periodIn + ' day' + (st.periodIn === 1 ? '' : 's') + '.' });
     }
-    // unusual cycle
-    if (st.cycleDay && R.cy.validCycles.length >= 2 && st.cycleDay > R.cy.mu + 2 * R.cy.sigma) add({ id: 'unusualCycle', priority: 'low', dismissKey: 'unusual:' + R.cy.lastStart, text: 'This cycle is longer than usual. Was there illness, travel or a lot of stress? You can add a note so it doesn\'t skew your predictions.' });
+    // late period: ask, because a forgotten "period started" tap shifts every prediction after it
+    var late = R.cy.lastStart && R.cy.anyDayNow && R.cy.Pcal0 !== undefined ? D.toNum(t) - R.cy.Pcal0 : -1;
+    if (late >= 2 && !((R.entries[t] || {}).flow >= 2))
+      add({ id: 'periodLate', priority: 'normal', dismissKey: 'late:' + R.cy.lastStart + ':' + Math.floor(late / 3), expected: D.fromNum(R.cy.Pcal0),
+        bold: 'Did your period start?', text: 'It was expected around ' + D.fmt(D.fromNum(R.cy.Pcal0)) + '. If it started and wasn\'t logged, marking the day keeps your predictions right.' });
+    // unusual cycle (skipped while the late-period question is showing)
+    if (late < 2 && st.cycleDay && R.cy.validCycles.length >= 2 && st.cycleDay > R.cy.mu + 2 * R.cy.sigma) add({ id: 'unusualCycle', priority: 'low', dismissKey: 'unusual:' + R.cy.lastStart, text: 'This cycle is longer than usual. Was there illness, travel or a lot of stress? You can add a note so it doesn\'t skew your predictions.' });
     // connections-driven
     if (R.conn && R.conn.cards) {
       R.conn.cards.forEach(function (c) {
@@ -2334,7 +2437,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var keys = Object.keys(entries).sort(), last = keys[keys.length - 1], frozen = {};
     for (var k = days; k >= 1; k -= (step || 1)) {
       var t = D.add(last, -k + 1), asOfPrev = D.add(t, -1), sub = {};
-      keys.forEach(function (d) { if (d < t) sub[d] = entries[d]; else if (d === t) { var e = entries[d]; sub[d] = { date: d, sleepHours: e.sleepHours, sleepQuality: e.sleepQuality, energyAM: e.energyAM, moodAM: e.moodAM, medsTaken: e.medsTaken }; } });
+      keys.forEach(function (d) { if (d < t) sub[d] = entries[d]; else if (d === t) { var e = entries[d]; sub[d] = { date: d, sleepHours: e.sleepHours, sleepQuality: e.sleepQuality, energyAM: e.energyAM, moodAM: e.moodAM }; } });
       var b = M.buildAll(sub, settings, t);
       frozen[t] = {};
       (items || ['mood', 'irritability', 'focus']).forEach(function (it) { var f = M.forecast(b.ctx, b.models[it], t); if (!f.cold) frozen[t][it] = { y: f.y, lo: f.lo, hi: f.hi }; });
@@ -3636,7 +3739,6 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       scaleQ(e, 'sleepQuality', 'am'),
       UI.card('', UI.question('Hours slept', 'Roughly is fine', stepper, function () { delete e.sleepHours; commit(e, 'am'); UI.rerender(); })),
       scaleQ(e, 'energyAM', 'am'), scaleQ(e, 'moodAM', 'am'),
-      s.medsTracked ? UI.card('', UI.question('Meds taken?', null, UI.answers({ labels: [[false, 'No'], [true, 'Yes']], value: e.medsTaken, cols: 2, onpick: function (v) { e.medsTaken = v; commit(e, 'am'); } }), function () { delete e.medsTaken; commit(e, 'am'); UI.rerender(); })) : null,
       UI.card('', UI.question('Your plan for today', 'Set last night. Change it if the day looks different.', h('div', { class: 'col', style: { gap: '10px' } }, UI.todoReview(e, 'must', 'am'), UI.todoReview(e, 'want', 'am'))))];
     UI.screen(root, { content: content, bottom: [UI.btn('Save', function () { commit(e, 'am'); UI.invalidate(); UI.go('today'); }, 'primary big')] });
   };
@@ -3685,9 +3787,10 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   // ---------- short evening ----------
   UI.screens.eshort = function (root, p) {
     var date = UI.paramDate(p[0]), e = work(date);
-    var content = [UI.topbar('Short check-in', null, UI.iconbtn('close', 'Close', function () { UI.go('today'); })), h('p', { class: 'small' }, UI.dateLong(date) + ' · 3 questions'),
+    var content = [UI.topbar('Short check-in', null, UI.iconbtn('close', 'Close', function () { UI.go('today'); })), h('p', { class: 'small' }, UI.dateLong(date) + ' · ' + (UI.settings().medsTracked ? 4 : 3) + ' questions'),
       optQ(e, 'flow', C.FLOW.map(function (x, i) { return [i, x]; }), 'pm', 3, '', { after: function () { e.eveningMode = e.eveningMode || 'short'; commit(e, 'pm'); } }),
       scaleQ(e, 'mood', 'pm'), scaleQ(e, 'hopelessness', 'pm'),
+      UI.settings().medsTracked ? optQ(e, 'medsTaken', [[false, 'No'], [true, 'Yes']], 'pm', 2) : null,
       h('button', { class: 'linkbtn', style: { alignSelf: 'center' }, type: 'button', onclick: function () { UI.go('efull/' + date + '/1'); } }, 'Switch to the full check-in')];
     UI.screen(root, { content: content, bottom: [UI.btn('Save', function () { if (!e.eveningMode) e.eveningMode = 'short'; commit(e, 'pm'); UI.invalidate(); UI.go('saved/' + date); }, 'primary big')] });
   };
@@ -3721,6 +3824,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       content.push(scaleQ(e, 'stress', 'pm'));
       content.push(optQ(e, 'dayType', [['work', 'Work'], ['off', 'Off'], ['busy', 'Busy']], 'pm', 3));
       content.push(optQ(e, 'exercise', [[false, 'No'], [true, 'Yes']], 'pm', 2));
+      if (UI.settings().medsTracked) content.push(optQ(e, 'medsTaken', [[false, 'No'], [true, 'Yes']], 'pm', 2));
       var tags = e.tags || [];
       var note = UI.field('Note (optional)', e.note || '', { multiline: true, max: 500, oninput: function (v) { if (v) e.note = v; else delete e.note; commit(e, 'pm'); } });
       content.push(UI.card('', UI.question('Anything unusual?', 'Illness, travel, med change, big event…', h('div', { class: 'col', style: { gap: '12px' } },
@@ -3839,6 +3943,15 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
           hl ? h('a', { class: 'callbtn', href: 'tel:' + hl.tel, style: { background: 'var(--supportInk)', color: 'var(--support)' } }, UI.icon('phone'), 'Call ' + hl.name + ' · ' + hl.number) : h('a', { class: 'callbtn', href: 'https://findahelpline.com', target: '_blank', rel: 'noopener', style: { background: 'var(--supportInk)', color: 'var(--support)' } }, 'Find a helpline')));
         return;
       }
+      if (a.id === 'periodLate') {
+        var dismiss = function () { cache.dismissed = cache.dismissed || {}; cache.dismissed[a.dismissKey] = UI.today(); TS.store.save(); UI.invalidate(); UI.rerender(); };
+        out.push(h('section', { class: 'alertcard', role: 'status', style: { flexDirection: 'column', alignItems: 'stretch' } }, h('p', null, h('strong', null, a.bold + ' '), a.text),
+          h('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', marginTop: '4px' } },
+            UI.btn('Yes, today', function () { UI.markPeriodStart(R.today); }, 'primary'),
+            UI.btn('Yes, pick the day', function () { UI.state.calYm = a.expected.slice(0, 7); UI.state.calSel = a.expected; UI.toast('Tap the day it started, then “Mark period start”'); UI.go('calendar'); }),
+            UI.btn('Not yet', dismiss, 'ghost'))));
+        return;
+      }
       var info = a.id === 'newDiscovery' || a.id === 'cycleSummary';
       out.push(h('section', { class: 'alertcard' + (info ? ' info' : ''), role: 'status' },
         h('p', null, a.bold ? h('strong', null, a.bold + ' ') : null, a.text),
@@ -3864,32 +3977,36 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       h('div', { class: 'col', style: { borderTop: '1px solid var(--line)', paddingTop: '12px' } }, rows));
   };
 
+  // mark a period start on day d (today from the button, or a past day from the late-period question)
+  UI.markPeriodStart = function (d) {
+    var s = UI.settings(), ov = (s.periodStartOverrides || []).filter(function (x) { return x !== d; }); ov.push(d);
+    var rm = (s.periodStartRemovals || []).filter(function (x) { return x !== d; });
+    UI.saveSettings({ periodStartOverrides: ov, periodStartRemovals: rm });
+    var e = UI.entry(d) ? Object.assign({}, UI.entry(d)) : { date: d }; e.periodStartTapped = true; if (e.flow === undefined) e.flow = 3; UI.saveEntry(e);
+    UI.toast('Period logged. Predictions updated.'); UI.rerender();
+  };
   UI.periodButton = function (R) {
     var t = R.today, s = UI.settings(), logged = (s.periodStartOverrides || []).indexOf(t) >= 0 || R.cy.lastStart === t;
     if (logged) return h('div', { class: 'todo' }, h('span', { class: 'badge', style: { background: 'var(--period)', color: 'var(--periodInk)', width: '40px', height: '40px', borderRadius: '14px' } }, UI.icon('drop', 22)),
       h('div', { class: 'grow col', style: { gap: '1px' } }, h('b', { style: { fontFamily: 'var(--hf)', fontSize: '18px', fontWeight: 600 } }, 'Period day 1 · logged ✓'), h('span', { class: 'small' }, 'Predictions are updated.')),
       (s.periodStartOverrides || []).indexOf(t) >= 0 ? UI.btn('Undo', function () { UI.saveSettings({ periodStartOverrides: (s.periodStartOverrides || []).filter(function (d) { return d !== t; }) }); UI.rerender(); }, 'ghost') : null);
     return h('button', { type: 'button', class: 'btn', style: { justifyContent: 'flex-start', gap: '12px', minHeight: '60px', padding: '10px 16px', borderRadius: '20px', textAlign: 'left', fontFamily: 'var(--bf)' }, onclick: function () {
-      var ov = (s.periodStartOverrides || []).filter(function (d) { return d !== t; }); ov.push(t);
-      var rm = (s.periodStartRemovals || []).filter(function (d) { return d !== t; });
-      UI.saveSettings({ periodStartOverrides: ov, periodStartRemovals: rm });
-      var e = UI.entry(t) ? Object.assign({}, UI.entry(t)) : { date: t }; e.periodStartTapped = true; if (e.flow === undefined) e.flow = 3; UI.saveEntry(e);
-      UI.toast('Period logged. Predictions updated.'); UI.rerender();
+      UI.markPeriodStart(t);
     } }, h('span', { class: 'badge', style: { background: 'var(--period)', color: 'var(--periodInk)', width: '40px', height: '40px', borderRadius: '14px' } }, UI.icon('drop', 22)),
       h('span', { class: 'col grow', style: { gap: '1px' } }, h('span', { style: { fontFamily: 'var(--hf)', fontSize: '18px', fontWeight: 600, color: 'var(--ink)' } }, 'Period started today'), h('span', { class: 'small' }, 'One tap. You can change it later in the calendar.')));
   };
 
-  function todoCards(R) {
+  function todoCards(R, onlyMust) {
     var t = R.today, e = UI.entry(t) || { date: t }, out = [];
-    [['must', 'mustDo', 'mustDone', 'Must-do'], ['want', 'wantDo', 'wantDone', 'Like-to-do']].forEach(function (k) {
-      if (!e[k[1]]) return;
+    [['must', 'mustDo', 'mustDone', onlyMust ? 'Today\'s must-do' : 'Must-do'], ['want', 'wantDo', 'wantDone', 'Like-to-do']].forEach(function (k) {
+      if (!e[k[1]] || (onlyMust && k[0] === 'want')) return;
       var done = e[k[2]] === 2;
-      out.push(h('div', { class: 'todo' }, h('div', { class: 'grow col', style: { gap: '2px' } }, UI.label(k[3]), h('b', null, e[k[1]])),
+      out.push(h('div', { class: 'todo flat' }, h('div', { class: 'grow col', style: { gap: '2px' } }, UI.label(k[3]), h('b', null, e[k[1]])),
         h('button', { class: 'iconbtn', style: { border: 0, boxShadow: 'none', background: 'transparent', width: '44px', height: '44px' }, type: 'button', 'aria-label': 'Edit ' + k[3], onclick: function () { editTodo(e, k); } }, UI.icon('edit', 20)),
         done ? h('button', { class: 'donepill', type: 'button', 'aria-label': k[3] + ' done. Tap to undo', onclick: function () { var x = Object.assign({}, e); delete x[k[2]]; UI.saveEntry(x); UI.rerender(); } }, UI.icon('check', 18, 2.5), 'Done')
           : UI.btn('Done', function () { var x = Object.assign({}, e); x[k[2]] = 2; UI.saveEntry(x); UI.toast(A.celebrate(2, t + k[0])); UI.rerender(); })));
     });
-    if (!e.mustDo) out.push(UI.card('', h('div', { class: 'row', style: { gap: '12px' } }, h('p', { class: 'grow muted' }, 'No must-do set. Want to add one?'), UI.btn('Add', function () { editTodo(e, ['must', 'mustDo', 'mustDone', 'Must-do']); }, '', 'plus'))));
+    if (!e.mustDo && !onlyMust) out.push(h('div', { class: 'todo flat' }, h('div', { class: 'row grow', style: { gap: '12px' } }, h('p', { class: 'grow muted' }, 'No must-do set. Want to add one?'), UI.btn('Add', function () { editTodo(e, ['must', 'mustDo', 'mustDone', 'Must-do']); }, '', 'plus'))));
     return out;
   }
   function editTodo(e, k) {
@@ -3899,17 +4016,33 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       e[k[1]] ? UI.btn('Remove', function () { var x = Object.assign({}, UI.entry(e.date) || {}); delete x[k[1]]; delete x[k[2]]; UI.saveEntry(x); sh.close(); UI.rerender(); }, 'ghost block') : null]);
   }
 
-  function checkinButtons(R) {
+  function checkinCard(R, evening) {
     var t = R.today, e = UI.entry(t) || {}, s = UI.settings(), y = D.add(t, -1), ye = UI.entry(y);
     var mDone = e.moodAM !== undefined || e.energyAM !== undefined || e.sleepQuality !== undefined, eDone = e.mood !== undefined || e.hopelessness !== undefined || e.irritability !== undefined;
-    function done(txt, go) { return h('button', { type: 'button', class: 'btn', style: { minHeight: '64px', borderRadius: '20px', color: 'var(--ink)' }, onclick: go }, h('span', { style: { color: 'var(--acc)' } }, UI.icon('check', 20, 2.5)), txt); }
-    function todo(txt, go) { return h('button', { type: 'button', class: 'btn primary', style: { minHeight: '64px', borderRadius: '20px' }, onclick: go }, txt); }
     var first = Object.keys(TS.store.data.entries).sort()[0];
     var yMissing = first && first < t && (!ye || (ye.mood === undefined && ye.hopelessness === undefined && ye.irritability === undefined));
-    return h('div', { class: 'grid2', style: { gap: '10px' } },
-      s.morningEnabled ? (mDone ? done('Morning done', function () { UI.go('morning/' + t); }) : todo('Morning check-in', function () { UI.go('morning/' + t); })) : null,
-      eDone ? done('Evening done', function () { UI.go('efull/' + t + '/1'); }) : todo('Evening check-in', function () { UI.go('evening/' + t); }),
-      yMissing ? h('button', { type: 'button', class: 'btn', style: { gridColumn: '1 / -1', borderStyle: 'dashed', boxShadow: 'none', minHeight: '48px' }, onclick: function () { UI.go('evening/' + y); } }, 'Fill in yesterday') : null);
+    function cta(kind) {
+      var m = kind === 'morning', go = function () { UI.go(m ? 'morning/' + t : 'evening/' + t); };
+      return h('button', { type: 'button', class: 'checkincta', onclick: go },
+        h('span', { class: 'ic', 'aria-hidden': 'true' }, UI.icon(m ? 'sun' : 'moon', 26)),
+        h('span', { class: 'col grow', style: { gap: '2px', textAlign: 'left' } }, h('span', { class: 't' }, m ? 'Morning check-in' : 'Evening check-in'),
+          h('span', { class: 's' }, m ? 'About 20 seconds · sleep, energy and mood' : 'Short: ' + (s.medsTracked ? 4 : 3) + ' questions · Full: about a minute')),
+        h('span', { class: 'go' }, 'Start'));
+    }
+    function doneLine() {
+      var items = [];
+      if (s.morningEnabled && mDone) items.push('Morning check-in');
+      if (eDone) items.push(items.length ? 'Evening' : 'Evening check-in');
+      return h('div', { class: 'doneline' }, items.map(function (x) { return h('span', { class: 'row', style: { gap: '6px' } }, h('span', { style: { color: 'var(--acc)', display: 'flex' } }, UI.icon('check', 18, 2.6)), x); }),
+        h('span', { class: 'grow' }),
+        !eDone ? h('button', { type: 'button', class: 'linkbtn', onclick: function () { UI.go('evening/' + t); } }, 'Evening now') : null,
+        h('button', { type: 'button', class: 'linkbtn', onclick: function () { UI.go(eDone ? 'efull/' + t + '/1' : 'morning/' + t); } }, 'Edit'));
+    }
+    var main;
+    if (!evening && s.morningEnabled && !mDone) main = cta('morning');
+    else if (!eDone && (evening || !s.morningEnabled)) main = cta('evening');
+    else main = doneLine();
+    return [main, yMissing ? h('button', { type: 'button', class: 'btn', style: { borderStyle: 'dashed', boxShadow: 'none', minHeight: '48px' }, onclick: function () { UI.go('evening/' + y); } }, 'Fill in yesterday') : null];
   }
 
   UI.stoneCard = function (R) {
@@ -3921,28 +4054,36 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       h('div', { class: 'row', style: { gap: '14px' } }, UI.gem(stone.colours, 56), h('div', { class: 'col', style: { gap: '2px' } },
         h('button', { type: 'button', class: 'linkbtn', style: { minHeight: 'auto', fontFamily: 'var(--hf)', fontSize: '20px', fontWeight: 600, color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--line)', textUnderlineOffset: '4px' }, onclick: function () { UI.stoneSheet(stone.id); } }, stone.name),
         h('p', { class: 'small' }, 'Traditionally associated with: ' + stone.meaning))),
-      h('p', { class: 'small', html: '<strong style="color:var(--ink)">Why today:</strong> ' + UI.esc(st.why) }));
+      h('p', { class: 'small', html: '<strong style="color:var(--ink)">Why today:</strong> ' + UI.esc(st.why) }),
+      TS.stones.INFO[st.id] ? h('button', { type: 'button', class: 'linkbtn', style: { justifyContent: 'flex-start', minHeight: '44px', fontWeight: 800 }, onclick: function () { UI.stoneSheet(st.id); } }, 'About this stone', UI.icon('chev', 16)) : null);
   };
   UI.stoneSheet = function (id) {
-    var s = TS.stones.byId(id);
+    var s = TS.stones.byId(id), info = TS.stones.INFO[id];
     var sh = UI.sheet([h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } }, h('div', { class: 'row', style: { gap: '14px' } }, UI.gem(s.colours, 72), h('div', null, h('h2', { style: { fontSize: '26px' } }, s.name), h('p', { class: 'small' }, 'Colour: ' + s.colourName))), UI.iconbtn('close', 'Close', function () { sh.close(); })),
       h('div', { class: 'col', style: { gap: '4px' } }, UI.label('Traditionally associated with'), h('p', null, s.meaning.charAt(0).toUpperCase() + s.meaning.slice(1))),
       UI.kv('Days it was your stone', String(A.stoneDays(TS.store.data.entries, id))),
-      h('p', { class: 'small' }, 'Stone meanings come from crystal traditions, not science. Use it as a moment to pause.')]);
+      h('p', { class: 'small' }, 'Stone meanings come from crystal traditions, not science. Use it as a moment to pause.'),
+      info ? h('div', { class: 'col', style: { gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--line)' } }, UI.label('About this stone'),
+        h('p', null, info.fact),
+        UI.kv('Where it\'s found', info.found),
+        UI.kv('Hardness', info.h + ' of 10 · ' + TS.stones.hardWord(info.h)),
+        h('p', { class: 'small' }, 'Hardness uses the Mohs scale: 1 is talc, 7 is quartz, 10 is diamond.'),
+        h('div', { class: 'tipbox' }, UI.label('Looking after it'), h('p', { style: { fontSize: '15px' } }, info.care))) : null]);
   };
 
   // plan card (today 'T' or tomorrow 'N'); records which tips were shown
-  UI.planCard = function (R, mode) {
+  UI.planCard = function (R, mode, todos) {
     var s = UI.settings(), t = R.today;
-    if (!s.tipsEnabled) return null;
-    var p = A.plan(R, mode);
     var title = mode === 'N' ? 'Plan for tomorrow' : 'Today\'s plan';
-    if (p.coldStart) return UI.card('', UI.h2(title), h('p', { class: 'small' }, 'Tips appear once there\'s a forecast. A few days of check-ins is enough to start.'));
+    var todoBox = todos && todos.length ? h('div', null, todos) : null;
+    if (!s.tipsEnabled) return todoBox ? UI.card('', UI.h2(title), todoBox) : null;
+    var p = A.plan(R, mode);
+    if (p.coldStart) return UI.card('', UI.h2(title), todoBox, h('p', { class: 'small' }, 'Tips appear once there\'s a forecast. A few days of check-ins is enough to start.'));
     // record shown tips
     var e = UI.entry(t) ? Object.assign({}, UI.entry(t)) : { date: t }, ids = p.tips.map(function (x) { return x.id; }), key = mode === 'N' ? 'planTomorrow' : 'tipsShown';
     var prev = e[key] || [], merged = mode === 'N' ? ids : prev.concat(ids.filter(function (i) { return prev.indexOf(i) < 0; }));
     if (JSON.stringify(prev) !== JSON.stringify(merged)) { e[key] = merged; TS.store.data.entries[t] = e; TS.store.save(); }
-    var kids = [UI.h2(title, mode === 'N' ? UI.label(D.fmt(D.add(t, 1), 'wshort')) : null), h('p', { style: { fontWeight: 700 } }, p.summary)];
+    var kids = [UI.h2(title, mode === 'N' ? UI.label(D.fmt(D.add(t, 1), 'wshort')) : null), todoBox, h('p', { style: { fontWeight: 700 } }, p.summary)];
     var tm = UI.entry(D.add(t, 1));
     if (mode === 'N' && tm && tm.mustDo) kids.push(h('div', { class: 'col', style: { gap: '2px', padding: '14px', borderRadius: '14px', border: '1.5px solid var(--acc)' } }, UI.label('Your must-do for tomorrow', 'var(--acc)'), h('b', null, '‘' + tm.mustDo + '’')));
     var ICONS = { planning: 'calendar', focus: 'target', sleep: 'moon', food: 'eat', emotions: 'heart', body: 'drop', social: 'mail', support: 'phone', goodday: 'sun', custom: 'spark' };
@@ -3958,22 +4099,43 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     return UI.card.apply(null, [''].concat(kids));
   };
 
-  UI.forecastCard = function (R, all) {
-    var t = R.today, items = all ? C.OUTCOMES.filter(function (i) { return i !== 'mustDone' && i !== 'wantDone'; }) : C.KEY_FORECAST, rows = [], cold = false, e = UI.entry(t) || {};
-    var pe = UI.settings().physicalItemsEnabled || {};
-    items.forEach(function (it) {
-      if (pe[it] === false) return;
-      var f = R.forecast[t][it]; if (!f) return;
-      var known = ['moodAM', 'energyAM', 'sleepQuality'].indexOf(it) >= 0 && S.isNum(e[it]);
-      var v = known ? e[it] : f.y; cold = cold || f.cold;
-      var chip = f.cold && !known ? h('span', { class: 'fchip', style: { border: '1.5px dashed var(--line)', color: 'var(--mute)' } }, '–') : UI.fchip(known ? String(v) : C.fmtForecast(it, v), C.step5(C.badness6(it, v)));
-      var rng = known ? 'logged' : f.cold ? '± ' + (C.isYSN(it) ? 'full range' : '1.5') : C.isYSN(it) ? 'no – yes' : 'range ' + f.lo.toFixed(1) + '–' + f.hi.toFixed(1);
-      if (C.isYSN(it) && !f.cold) rng = C.YSN[Math.round(f.lo)].toLowerCase() + ' – ' + C.YSN[Math.round(f.hi)].toLowerCase();
-      rows.push(h('div', { class: 'frow' }, h('span', { class: 'nm' }, C.items[it].short), h('span', { style: { justifySelf: 'end' } }, chip),
-        h('span', { class: 'why' }, known ? 'from this morning\'s check-in' : f.reasonText), h('span', { class: 'rg' }, rng)));
-    });
-    return UI.card('', UI.h2('Today\'s forecast', cold ? UI.label('Not enough data yet') : null), cold ? null : UI.legend(), h('div', null, rows),
-      UI.btn(all ? 'Show fewer' : 'Show all ' + rows.length + ' items', function () { UI.state.fcAll = !all; UI.rerender(); }) );
+  UI.forecastCard = function (R) {
+    var t = R.today, v = A.forecastView(R, t), cache = UI.cache();
+    if (!cache.fcOpen || cache.fcOpen.date !== t) cache.fcOpen = { date: t, groups: [] }; // groups you open stay open today, closed again tomorrow
+    var open = cache.fcOpen.groups;
+    var sc = function (st) { return 'var(--s' + st + ')'; };
+    function badge(icon, bg, size) { return h('span', { 'aria-hidden': 'true', style: { width: size + 'px', height: size + 'px', flex: 'none', borderRadius: Math.round(size / 2.8) + 'px', background: bg || 'var(--tint)', color: !bg ? 'var(--acc)' : bg === 'var(--s5)' ? '#fff' : '#1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, UI.icon(icon, Math.round(size / 2))); }
+    function standRow(r, good, last) {
+      return h('div', { class: 'row', style: { gap: '12px', padding: '12px 0', borderBottom: last ? null : '1px solid var(--line)' } }, badge(good ? 'check' : r.icon, sc(r.step), 44),
+        h('div', { class: 'col grow', style: { gap: '2px' } }, h('span', { style: { fontFamily: 'var(--hf)', fontSize: '18px', fontWeight: 600 } }, r.name + ' ', h('span', { style: { fontWeight: 500 } }, '· ' + r.words)),
+          r.reason && r.reason !== 'close to your usual' ? h('span', { class: 'small' }, 'Why: ' + r.reason) : null));
+    }
+    function group(g) {
+      var isOpen = open.indexOf(g.title) >= 0;
+      var head = h('button', { type: 'button', 'aria-expanded': isOpen ? 'true' : 'false', style: { display: 'flex', width: '100%', alignItems: 'center', gap: '12px', minHeight: '60px', padding: '6px 0', border: 0, background: 'transparent', textAlign: 'left', color: 'var(--ink)', fontFamily: 'var(--bf)' },
+        onclick: function () { var i = open.indexOf(g.title); if (i >= 0) open.splice(i, 1); else open.push(g.title); TS.store.save(); UI.rerender(); } },
+        badge(g.icon, null, 36),
+        h('span', { class: 'col grow', style: { gap: '1px' } }, h('span', { style: { fontSize: '16px', fontWeight: 800 } }, g.title), h('span', { class: 'small' }, g.summary)),
+        h('span', { class: 'row', style: { gap: '3px' }, 'aria-hidden': 'true' }, g.items.map(function (r) { return h('span', { style: { width: '10px', height: '10px', borderRadius: '5px', background: sc(r.step) } }); })),
+        h('span', { style: { color: 'var(--mute)', display: 'flex', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform .15s' } }, UI.icon('chev', 18)));
+      var body = isOpen ? h('div', { class: 'col', style: { gap: '2px', padding: '0 0 10px 48px' } }, g.items.map(function (r) {
+        var f = r.f, txt = f.cold ? '–' : C.fmtForecast(r.item, f.y);
+        return h('div', { class: 'row', style: { gap: '10px', minHeight: '40px', fontSize: '15px' } }, h('span', { class: 'grow', style: { fontWeight: 700 } }, r.name), h('span', { class: 'muted' }, f.cold ? '' : r.words),
+          f.cold ? h('span', { class: 'fchip', style: { border: '1.5px dashed var(--line)', color: 'var(--mute)' } }, '–') : UI.fchip(txt, C.step5(C.badness6(r.item, f.y))));
+      })) : null;
+      return h('div', { style: { borderTop: '1px solid var(--line)' } }, head, body);
+    }
+    var kids = [UI.h2('Today\'s forecast', v.cold ? UI.label('Not enough data yet') : null)];
+    if (!v.cold) kids.push(h('p', { class: 'small' }, v.morningDone ? 'Updated with this morning\'s answers.' : 'Gets more precise after your morning check-in.'));
+    if (v.cold) kids.push(h('p', { class: 'small' }, 'Forecasts get personal after about 3 weeks of check-ins. Until then, everything shows as "–".'));
+    else if (v.good || v.hard.length) {
+      if (v.good) kids.push(UI.label('Good news'), h('div', null, standRow(v.good, true, true)));
+      if (v.hard.length) kids.push(UI.label('Stands out today'), h('div', null, v.hard.map(function (r, i) { return standRow(r, false, i === v.hard.length - 1); })));
+    } else kids.push(h('div', { class: 'row', style: { gap: '12px', padding: '12px 14px', borderRadius: '18px', background: 'var(--tint)' } }, badge('sun', 'var(--s1)', 40),
+      h('span', { style: { fontFamily: 'var(--hf)', fontSize: '17px', fontWeight: 600 } }, 'A fairly usual day expected. Nothing stands out.')));
+    kids.push(UI.label(v.cold || (!v.good && !v.hard.length) ? 'All items' : 'Everything else'), h('div', { style: { marginTop: '-6px' } }, v.groups.map(group)),
+      h('a', { href: '#outlook', class: 'row', style: { gap: '6px', minHeight: '44px', fontFamily: 'var(--hf)', fontSize: '16px', fontWeight: 600, textDecoration: 'none' } }, 'Full forecast with ranges in Outlook', UI.icon('chev', 16)));
+    return UI.card('', kids);
   };
 
   UI.screens.today = function (root) {
@@ -3983,19 +4145,28 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var content = [h('header', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-end', padding: '8px 2px 0' } },
       h('div', null, h('p', { class: 'h1sub' }, 'Today · ' + UI.dateLong(t)), h('h1', { class: 'h1' }, UI.greeting())), UI.moonChip(t))];
     content = content.concat(alertCards(R));
+    var st = R.status, s = UI.settings();
+    // the full period button moves up only when it's needed: due today or tomorrow, late, or just tapped
+    var promote = st.anyDayNow || (st.periodIn !== null && st.periodIn !== undefined && st.periodIn <= 1) || R.alerts.some(function (a) { return a.id === 'periodLate'; }) ||
+      (s.periodStartOverrides || []).indexOf(t) >= 0 || R.cy.lastStart === t;
+    if (promote) content.push(UI.periodButton(R));
     if (first) content.push(UI.card('tint', UI.h2('Welcome!'), h('p', { class: 'muted' }, 'Predictions start as typical estimates and become personal as you check in. Missing days are fine; every check-in helps.')));
-    content.push(UI.cycleCard(R));
-    content.push(UI.periodButton(R));
-    content.push(h('div', { class: 'col', style: { gap: '10px' } }, todoCards(R)));
-    content.push(checkinButtons(R));
-    var support = R.alerts.some(function (a) { return a.id === 'support'; });
-    var stoneEl = UI.stoneCard(R);
     var evening = hr >= 18 || eDone;
-    if (!support && stoneEl) content.push(stoneEl);
-    content.push(evening ? UI.planCard(R, 'N') : UI.planCard(R, 'T'));
-    if (support && stoneEl) content.push(stoneEl); // stone always below support content (spec §9D.5)
-    if (!evening || UI.state.showFc) content.push(UI.forecastCard(R, !!UI.state.fcAll));
-    else content.push(h('button', { type: 'button', class: 'linkbtn', style: { alignSelf: 'center' }, onclick: function () { UI.state.showFc = true; UI.rerender(); } }, 'See today\'s forecast'));
+    content = content.concat(checkinCard(R, evening));          // 1. what to do now
+    if (!evening) {
+      content.push(UI.forecastCard(R));                           // 2. what today looks like
+      content.push(UI.planCard(R, 'T', todoCards(R)));            // 3. what to do about it
+    } else {
+      content.push(UI.planCard(R, 'N', todoCards(R, true)));      // tomorrow's plan, with today's must-do to tick off
+      if (UI.state.showFc) content.push(UI.forecastCard(R));
+      else content.push(h('button', { type: 'button', class: 'linkbtn', style: { alignSelf: 'center' }, onclick: function () { UI.state.showFc = true; UI.rerender(); } }, 'See today\'s forecast', UI.icon('chev', 16)));
+    }
+    var cc = UI.cycleCard(R);                                     // 4. background
+    if (!promote) cc.appendChild(h('button', { type: 'button', class: 'btn', style: { alignSelf: 'flex-start', gap: '10px', minHeight: '48px', padding: '0 14px', fontSize: '16px' }, onclick: function () { UI.markPeriodStart(t); } },
+      h('span', { 'aria-hidden': 'true', style: { width: '28px', height: '28px', borderRadius: '10px', background: 'var(--period)', color: 'var(--periodInk)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, UI.icon('drop', 16)), 'Period started today'));
+    content.push(cc);
+    var stoneEl = UI.stoneCard(R);                                // 5. a calm close (always below any support content)
+    if (stoneEl) content.push(stoneEl);
     if (UI.state.patternsRunning) content.push(h('p', { class: 'small center' }, 'Looking for patterns in the background…'));
     UI.screen(root, { nav: 'today', content: content });
     UI.runPatterns();
