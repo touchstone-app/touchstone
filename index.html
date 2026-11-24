@@ -168,6 +168,10 @@ nav.tabs a[aria-current="page"] { color: var(--acc); font-weight: 800; }
 .doneline .linkbtn { min-height: 44px; font-weight: 800; }
 .todo.flat { background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 8px 0; border-bottom: 1px solid var(--line); }
 
+/* Stone of the day: the whole card is tappable */
+.stonebtn { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; align-items: stretch; }
+.stonebtn:active { transform: translateY(3px); box-shadow: 0 0 0 var(--line); }
+
 </style>
 </head>
 <body>
@@ -4050,25 +4054,29 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var t = R.today;
     if (st.isNew) { var e = UI.entry(t) ? Object.assign({}, UI.entry(t)) : { date: t }; e.stoneId = st.id; TS.store.data.entries[t] = e; TS.store.save(); } // stable for the day; no recompute needed
     var stone = TS.stones.byId(st.id);
-    return UI.card('', UI.label('Stone of the day'),
+    // the whole card is one big button that opens the stone's page
+    var info = TS.stones.INFO[st.id];
+    return h('button', { type: 'button', class: 'card stonebtn', 'aria-label': 'Stone of the day: ' + stone.name + '. Tap for more about this stone', onclick: function () { UI.stoneSheet(stone.id); } },
+      h('div', { class: 'row', style: { justifyContent: 'space-between' } }, UI.label('Stone of the day'), h('span', { style: { color: 'var(--mute)', display: 'flex' } }, UI.icon('chev', 20))),
       h('div', { class: 'row', style: { gap: '14px' } }, UI.gem(stone.colours, 56), h('div', { class: 'col', style: { gap: '2px' } },
-        h('button', { type: 'button', class: 'linkbtn', style: { minHeight: 'auto', fontFamily: 'var(--hf)', fontSize: '20px', fontWeight: 600, color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--line)', textUnderlineOffset: '4px' }, onclick: function () { UI.stoneSheet(stone.id); } }, stone.name),
-        h('p', { class: 'small' }, 'Traditionally associated with: ' + stone.meaning))),
-      h('p', { class: 'small', html: '<strong style="color:var(--ink)">Why today:</strong> ' + UI.esc(st.why) }),
-      TS.stones.INFO[st.id] ? h('button', { type: 'button', class: 'linkbtn', style: { justifyContent: 'flex-start', minHeight: '44px', fontWeight: 800 }, onclick: function () { UI.stoneSheet(st.id); } }, 'About this stone', UI.icon('chev', 16)) : null);
+        h('span', { style: { fontFamily: 'var(--hf)', fontSize: '20px', fontWeight: 600, color: 'var(--ink)' } }, stone.name),
+        h('span', { class: 'small' }, 'Traditionally associated with: ' + stone.meaning))),
+      h('span', { class: 'small', html: '<strong style="color:var(--ink)">Why today:</strong> ' + UI.esc(st.why) }),
+      info ? h('span', { class: 'small', style: { padding: '10px 12px', borderRadius: '14px', background: 'var(--tint)', color: 'var(--ink)' } }, info.fact) : null,
+      h('span', { class: 'row', style: { gap: '6px', fontFamily: 'var(--hf)', fontSize: '16px', fontWeight: 600, color: 'var(--acc)' } }, 'More about ' + stone.name, UI.icon('chev', 16)));
   };
   UI.stoneSheet = function (id) {
     var s = TS.stones.byId(id), info = TS.stones.INFO[id];
     var sh = UI.sheet([h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'flex-start' } }, h('div', { class: 'row', style: { gap: '14px' } }, UI.gem(s.colours, 72), h('div', null, h('h2', { style: { fontSize: '26px' } }, s.name), h('p', { class: 'small' }, 'Colour: ' + s.colourName))), UI.iconbtn('close', 'Close', function () { sh.close(); })),
       h('div', { class: 'col', style: { gap: '4px' } }, UI.label('Traditionally associated with'), h('p', null, s.meaning.charAt(0).toUpperCase() + s.meaning.slice(1))),
-      UI.kv('Days it was your stone', String(A.stoneDays(TS.store.data.entries, id))),
-      h('p', { class: 'small' }, 'Stone meanings come from crystal traditions, not science. Use it as a moment to pause.'),
       info ? h('div', { class: 'col', style: { gap: '8px', paddingTop: '12px', borderTop: '1px solid var(--line)' } }, UI.label('About this stone'),
         h('p', null, info.fact),
         UI.kv('Where it\'s found', info.found),
         UI.kv('Hardness', info.h + ' of 10 · ' + TS.stones.hardWord(info.h)),
         h('p', { class: 'small' }, 'Hardness uses the Mohs scale: 1 is talc, 7 is quartz, 10 is diamond.'),
-        h('div', { class: 'tipbox' }, UI.label('Looking after it'), h('p', { style: { fontSize: '15px' } }, info.care))) : null]);
+        h('div', { class: 'tipbox' }, UI.label('Looking after it'), h('p', { style: { fontSize: '15px' } }, info.care))) : null,
+      UI.kv('Days it was your stone', String(A.stoneDays(TS.store.data.entries, id))),
+      h('p', { class: 'small' }, 'Stone meanings come from crystal traditions, not science. Use it as a moment to pause.')]);
   };
 
   // plan card (today 'T' or tomorrow 'N'); records which tips were shown
