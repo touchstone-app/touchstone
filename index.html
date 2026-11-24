@@ -368,7 +368,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   C.YPN = ['No', 'Partly', 'Yes'];
   C.FLOW = ['None', 'Spotting', 'Light', 'Medium', 'Heavy'];
   C.MUCUS = ['Dry', 'Sticky', 'Creamy', 'Egg-white'];
-  C.DAYTYPE = { work: 'Work', off: 'Off', busy: 'Busy' };
+  C.DAYTYPE = { rest: 'Rest', normal: 'Normal', packed: 'Packed' };
   C.TAGS = { illness: 'Illness', travel: 'Travel', medChange: 'Med change', bigEvent: 'Big event' };
 
   // type: well6 (1–6, higher better), sym6 (1–6, higher worse), ysn (0–2), bool, hours, flow, mucus, daytype
@@ -397,7 +397,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     healthy: { label: 'Did you eat healthy?', help: '', type: 'ysn', when: 'pm', dir: 'better', name: 'healthy eating', better: 'more', worse: 'less', short: 'Ate healthy' },
     cravings: { label: 'Strong cravings?', help: 'Intense urges for specific foods (sweet, salty, carbs…)', type: 'ysn', when: 'pm', dir: 'worse', name: 'cravings', better: 'fewer', worse: 'more', short: 'Strong cravings' },
     stress: { label: 'Stress', help: '', type: 'sym6', when: 'pm', dir: 'worse', name: 'stress', better: 'lower', worse: 'higher', short: 'Stress' },
-    dayType: { label: 'What kind of day?', help: '', type: 'daytype', when: 'pm', dir: 'neutral', short: 'Day type' },
+    dayType: { label: 'What kind of day was today?', help: 'How much did today ask of you?', type: 'daytype', when: 'pm', dir: 'neutral', short: 'Day type' },
     exercise: { label: 'Exercise?', help: 'Any deliberate movement counts', type: 'bool', when: 'pm', dir: 'neutral', name: 'exercise', short: 'Exercise' },
     mustDone: { label: 'Did you do your must-do?', help: '', type: 'ysn', when: 'pm', dir: 'better', name: 'finishing your must-do', better: 'more likely', worse: 'less likely', short: 'Must-do done', ypn: true },
     wantDone: { label: 'Did you do your like-to-do?', help: '', type: 'ysn', when: 'pm', dir: 'better', name: 'doing your like-to-do', better: 'more likely', worse: 'less likely', short: 'Like-to-do done', ypn: true }
@@ -441,7 +441,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       case 'flow': return C.FLOW[v];
       case 'mucus': return C.MUCUS[v];
       case 'hours': return v + ' h';
-      case 'daytype': return C.DAYTYPE[v] || v;
+      case 'daytype': return C.DAYTYPE[C.dayTypeNorm(v)] || v;
     }
     return String(v);
   };
@@ -463,8 +463,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     cravings: { icon: 'cravings', group: 'eating', bin: true, yes: 'days with strong cravings', no: 'days without cravings', yesShort: 'Strong cravings', noShort: 'No cravings' },
     exercise: { icon: 'exercise', group: 'exercise', bin: true, yes: 'exercise days', no: 'days without exercise', yesShort: 'Exercise', noShort: 'No exercise' },
     medsTaken: { icon: 'meds', group: 'meds', bin: true, yes: 'days you took your meds', no: 'days without meds', yesShort: 'Meds taken', noShort: 'No meds' },
-    isWork: { icon: 'daytype', group: 'daytype', bin: true, yes: 'workdays', no: 'other days', yesShort: 'Workdays', noShort: 'Other days' },
-    isBusy: { icon: 'daytype', group: 'daytype', bin: true, yes: 'busy/social days', no: 'other days', yesShort: 'Busy days', noShort: 'Other days' },
+    isRest: { icon: 'daytype', group: 'daytype', bin: true, yes: 'rest days', no: 'other days', yesShort: 'Rest days', noShort: 'Other days' },
+    isPacked: { icon: 'daytype', group: 'daytype', bin: true, yes: 'packed days', no: 'other days', yesShort: 'Packed days', noShort: 'Other days' },
     moonIllum: { icon: 'moon', group: 'moon', moon: true, cont: true, low: function () { return 'darker-moon nights'; }, high: function () { return 'brighter-moon nights'; }, lowShort: 'Darker moon', highShort: 'Brighter moon' },
     moonPreFull: { icon: 'moon', group: 'moon', moon: true, bin: true, yes: 'the 3–5 nights before a full moon', no: 'other nights', yesShort: 'Nights before full moon', noShort: 'Other nights' },
     moonFull: { icon: 'moon', group: 'moon', moon: true, bin: true, yes: 'full-moon days', no: 'other days', yesShort: 'Full moon', noShort: 'Other days' },
@@ -501,6 +501,10 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   C.GOOD.forEach(function (g) {
     C.influences['good_' + g[0]] = { icon: 'spark', group: 'good', bin: true, good: true, yes: g[3], no: 'other days', yesShort: g[1], noShort: 'Other days' };
   });
+  // day type: how much a day asks of you (one answer always fits). Old answers are converted on load.
+  C.DAYTYPES = [['rest', '🛋️ Rest'], ['normal', '🙂 Normal'], ['packed', '🔥 Packed']];
+  C.DAYTYPE_OLD = { off: 'rest', work: 'normal', busy: 'packed' };
+  C.dayTypeNorm = function (v) { return C.DAYTYPE_OLD[v] || v; };
   C.lagWords = ['the same day', 'the next day', 'two days later'];
   C.lagShort = ['same day', 'next day', 'after 2 days'];
 
@@ -838,22 +842,23 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   var M = TS.model = {};
   var LAMBDA = 0.85, KSHRINK = 3, ALPHAS = [0.1, 0.3, 1, 3, 10, 30, 100];
   var MORNING_TARGETS = { moodAM: 1, energyAM: 1, sleepQuality: 1 };
-  var L0 = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'exercise', 'medsTaken', 'isWork', 'isBusy'];
+  var L0 = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'exercise', 'medsTaken', 'isRest', 'isPacked'];
   var L0_MORNING = ['sleepHours', 'sleepQuality']; // meds are asked in the evening, so not known for morning items
   var LAGGED = ['sleepHours', 'sleepQuality', 'stress', 'properMeal'];
   var EW_EXCLUDE = { mustDone: 1, wantDone: 1 };
   var GROUP = { sleepHours: 'sleep', sleepQuality: 'sleep', sleep3: 'sleep', stress: 'stress', properMeal: 'eating', healthy: 'eating', appetite: 'eating',
-    medsTaken: 'meds', isWork: 'daytype', isBusy: 'daytype', exercise: 'exercise' };
+    medsTaken: 'meds', isRest: 'daytype', isPacked: 'daytype', exercise: 'exercise' };
   M.GROUP_LABEL = { cycle: 'Cycle', sleep: 'Sleep', stress: 'Stress', eating: 'Eating', meds: 'Meds', daytype: 'Day type', exercise: 'Exercise', early: 'Early warning', carry: 'Carryover', moon: 'Moon' };
 
   // ---------- raw variable access ----------
   function rawVal(entries, v, s) {
     var e = entries[s];
-    if (v === 'isWork' || v === 'isBusy') {
+    if (v === 'isRest' || v === 'isPacked') {
       var dt = e && e.dayType;
       if (dt === undefined) { var y = entries[D.add(s, -1)]; dt = y && y.tomorrowDayType; }
       if (dt === undefined) return undefined;
-      return v === 'isWork' ? (dt === 'work' ? 1 : 0) : (dt === 'busy' ? 1 : 0);
+      dt = C.dayTypeNorm(dt);
+      return v === 'isRest' ? (dt === 'rest' ? 1 : 0) : (dt === 'packed' ? 1 : 0);
     }
     if (v === 'sleep3') {
       var vals = [0, 1, 2].map(function (k) { var x = entries[D.add(s, -k)]; return x && x.sleepHours; }).filter(S.isNum);
@@ -999,7 +1004,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     else {
       if (futureMode && D.toNum(s) > D.toNum(ctx.today)) {
         // unknown future, except tomorrow's day type from tonight's check-in
-        if ((spec.base === 'isWork' || spec.base === 'isBusy') && D.toNum(s) === D.toNum(ctx.today) + 1) x = rawVal(ctx.entries, spec.base, s);
+        if ((spec.base === 'isRest' || spec.base === 'isPacked') && D.toNum(s) === D.toNum(ctx.today) + 1) x = rawVal(ctx.entries, spec.base, s);
         else x = undefined;
       } else x = rawVal(ctx.entries, spec.base, s);
     }
@@ -1167,8 +1172,8 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var whenTxt = lag === 0 ? 'today' : lag === 1 ? 'yesterday' : 'two days ago';
     if (base === 'stress') return (S.isNum(x) && x >= 4 ? 'stressful day ' : 'calmer day ') + whenTxt;
     if (base === 'properMeal') return (S.isNum(x) && x === 0 ? 'no proper meal ' : S.isNum(x) && x === 1 ? 'only a partly proper meal ' : 'a proper meal ') + (lag === 0 ? (S.isNum(x) && x === 2 ? 'already today' : 'yet today') : whenTxt);
-    if (base === 'isWork') return lag === 0 ? 'workday' : 'workday ' + whenTxt;
-    if (base === 'isBusy') return lag === 0 ? 'busy day' : 'busy day ' + whenTxt;
+    if (base === 'isRest') return lag === 0 ? 'rest day' : 'rest day ' + whenTxt;
+    if (base === 'isPacked') return lag === 0 ? 'packed day' : 'packed day ' + whenTxt;
     if (base === 'exercise') return (x ? 'exercise ' : 'no exercise ') + whenTxt;
     if (base === 'medsTaken') return (x ? 'meds taken ' : 'no meds ') + whenTxt;
     if (base === 'sleepQuality') return (S.isNum(x) && x <= 3 ? 'poor sleep ' : 'good sleep ') + (lag === 0 ? 'last night' : whenTxt);
@@ -1342,13 +1347,13 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   'use strict';
   var TS = G.TS, D = TS.date, S = TS.stat, C = TS.cat, M = TS.model, MO = TS.moon;
   var CN = TS.conn = {};
-  var BASE_INF = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'cravings', 'exercise', 'medsTaken', 'isWork', 'isBusy'];
+  var BASE_INF = ['sleepHours', 'sleepQuality', 'stress', 'properMeal', 'healthy', 'appetite', 'cravings', 'exercise', 'medsTaken', 'isRest', 'isPacked'];
   var MORNING = { moodAM: 1, energyAM: 1, sleepQuality: 1 };
   var MORNING_KNOWN = { sleepHours: 1, sleepQuality: 1 };
 
   function kindOf(x) {
     if (x.indexOf('moon') === 0) return x === 'moonIllum' ? 'cont' : 'bin';
-    if (x.indexOf('usedTip_') === 0 || x.indexOf('good_') === 0 || x === 'isWork' || x === 'isBusy') return 'bin';
+    if (x.indexOf('usedTip_') === 0 || x.indexOf('good_') === 0 || x === 'isRest' || x === 'isPacked') return 'bin';
     var it = C.items[x]; if (!it) return 'bin';
     if (it.type === 'bool') return 'bin';
     if (it.type === 'ysn') return 'ysn';
@@ -1841,7 +1846,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       case 'phase': return "because it's your period";
       case 'state':
         if (t.feature === 'shortSleepLastNight') return 'because you slept ' + (c.sleepH !== undefined ? c.sleepH + ' h' : 'less');
-        if (t.feature === 'busyDay') return 'because it looks like a busy day';
+        if (t.feature === 'busyDay') return 'because it looks like a packed day';
         if (t.feature === 'medsTracked') return 'because meds can hide hunger';
         return 'because of how the day looks';
       case 'connection': return t.influence === 'sleepHours' ? 'because short sleep tends to affect you the next day' : 'because proper meals make a difference for you';
@@ -2160,14 +2165,14 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     var sleepVals = Object.keys(R.entries).map(function (d) { return R.entries[d].sleepHours; }).filter(S.isNum);
     var sleepH = e.sleepHours, shortSleep = false;
     if (S.isNum(sleepH)) shortSleep = sleepVals.length >= 21 ? sleepH <= S.quantile(sleepVals, 0.2) : sleepH < 6;
-    var dt = e.dayType || (mode === 'N' ? prev.tomorrowDayType : undefined) || prev.tomorrowDayType;
+    var dt = C.dayTypeNorm(e.dayType || (mode === 'N' ? prev.tomorrowDayType : undefined) || prev.tomorrowDayType);
     var confirmedInf = {};
     if (R.conn && R.conn.cards) R.conn.cards.forEach(function (c) { if (c.status === 'confirmed') confirmedInf[c.x] = true; });
     var sup = R.alerts && R.alerts.some(function (a) { return a.id === 'support'; });
     var lastNightPlan = (prev.planTomorrow || []);
     return {
       date: t, mode: mode, fc: fc, reasons: reasons, inWindow: wi.inWindow, windowStartsIn: wi.startsIn, windowDayN: wi.dayN, phase: ph.phase,
-      shortSleep: shortSleep, sleepH: sleepH, stressHigh: S.isNum(fc.stress) && fc.stress >= 4, busyDay: dt === 'busy', workDay: dt === 'work', dayOff: dt === 'off',
+      shortSleep: shortSleep, sleepH: sleepH, stressHigh: S.isNum(fc.stress) && fc.stress >= 4, busyDay: dt === 'packed', workDay: dt === 'normal', dayOff: dt === 'rest',
       medsTracked: R.settings.medsTracked, confirmedInfluences: confirmedInf, supportAlert: sup && R.settings.supportEnabled, nCycles: R.cy.validCycles.length,
       settings: R.settings, history: R.entries, mustDo: e.mustDo, wantDo: e.wantDo, lastNightPlan: lastNightPlan
     };
@@ -2584,7 +2589,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       var stress = Math.round(S.clamp(rnd.normal(3, 1.2), 1, 6));
       var pm = rnd.next(), properMeal = pm < 0.2 ? 0 : pm < 0.4 ? 1 : 2;
       var exercise = rnd.next() < 0.45;
-      var dayType = rnd.pick(['work', 'work', 'work', 'off', 'busy']);
+      var dayType = rnd.pick(['normal', 'normal', 'normal', 'rest', 'packed']);
       var sd = 0.5, sdIrr = 0.7; // spec: irritability noise 0.7; other items "noise" (builder's choice 0.5)
       var e = {
         date: s, createdAt: s + 'T21:00:00Z', updatedAt: s + 'T21:00:00Z',
@@ -2776,6 +2781,17 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
   function emailFor(username) { return username.toLowerCase() + '@' + CFG.emailDomain; }
 
   // ---------- the store ----------
+  // one-off conversions when data is loaded (local, pulled, demo or imported)
+  function migrate(d) {
+    if (!d) return d;
+    Object.keys(d.entries || {}).forEach(function (k) {
+      var e = d.entries[k];
+      if (C.DAYTYPE_OLD[e.dayType]) e.dayType = C.DAYTYPE_OLD[e.dayType];
+      if (C.DAYTYPE_OLD[e.tomorrowDayType]) e.tomorrowDayType = C.DAYTYPE_OLD[e.tomorrowDayType];
+    });
+    if (d.cache && d.cache.conn && d.cache.connV !== 2) { delete d.cache.conn; delete d.cache.connAt; } // patterns made with the old day types
+    return d;
+  }
   var ST = TS.store = {
     mode: null,          // 'real' | 'demo'
     data: null,          // { entries, settings, cache }
@@ -2800,7 +2816,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     startDemo: function (fresh) {
       ST.mode = 'demo';
       return KV.get('demoData').then(function (d) {
-        if (d && !fresh) { ST.data = d; }
+        if (d && !fresh) { ST.data = migrate(d); }
         else {
           var g = TS.synth.generate({ seed: 20261123, cycles: 9, endDate: TS.date.todayLocal(), currentDay: 22 });
           var s = Object.assign(C.defaultSettings(), g.settings, { onboarded: true, ownedStones: ['amethyst', 'rose-quartz', 'carnelian', 'clear-quartz', 'labradorite'], favouriteStones: ['moonstone', 'labradorite'] });
@@ -2868,7 +2884,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     loadLocal: function () {
       return KV.get('realData').then(function (box) {
         if (!box) { ST.data = ST.data || { entries: {}, settings: C.defaultSettings(), cache: {} }; return; }
-        return X.decryptJSON(ST.dataKey, box).then(function (d) { ST.data = d; ST.data.settings = Object.assign(C.defaultSettings(), d.settings || {}); });
+        return X.decryptJSON(ST.dataKey, box).then(function (d) { ST.data = migrate(d); ST.data.settings = Object.assign(C.defaultSettings(), d.settings || {}); });
       });
     },
     // recovery code: on this phone (forgot PIN) or on a new phone (with the username)
@@ -2952,7 +2968,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
           if (p[0] === 'settings' && p[1] && (replace || (p[1].at || '') > (d.settingsUpdatedAt || ''))) { d.settings = Object.assign(C.defaultSettings(), p[1].settings); d.settingsUpdatedAt = p[1].at; }
           if (p[0] === 'modelCache' && replace) d.cache = p[1] || {};
         });
-        ST.data = d; ST.lastSynced = new Date(); ST.setSync('ok'); ST._emit('pulled');
+        ST.data = migrate(d); ST.lastSynced = new Date(); ST.setSync('ok'); ST._emit('pulled');
         return X.encryptJSON(ST.dataKey, ST.data).then(function (box) { return KV.set('realData', box); }).then(function () { ST.push(); });
       }, function (e) { ST.setSync(e && e.status >= 500 ? 'paused' : 'offline'); });
     },
@@ -2975,7 +2991,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       return { ok: true, entries: valid, settings: j.settings, count: Object.keys(valid).length, invalid: invalid, existing: existing, overlap: overlap };
     },
     importAll: function (preview, mode) {
-      if (mode === 'replace') { ST.data.entries = preview.entries; if (preview.settings) ST.data.settings = Object.assign(C.defaultSettings(), preview.settings); }
+      migrate({ entries: preview.entries }); if (mode === 'replace') { ST.data.entries = preview.entries; if (preview.settings) ST.data.settings = Object.assign(C.defaultSettings(), preview.settings); }
       else Object.keys(preview.entries).forEach(function (k) { var a = ST.data.entries[k], b = preview.entries[k]; if (!a || (b.updatedAt || '') >= (a.updatedAt || '')) ST.data.entries[k] = b; });
       ST.data.cache = {}; ST.save(); return Promise.resolve();
     }
@@ -3018,6 +3034,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       case 'dow': return { text: D.WDAYS[D.weekday(e.date)].slice(0, 3) };
       case 'cday': return extra.cday ? { num: extra.cday } : { text: '' };
       case 'phase': return { text: PHASE[extra.phase] || '' };
+      case 'dayType': return { text: v ? ({ rest: 'Rest', normal: 'Normal', packed: 'Packed' }[TS.cat.dayTypeNorm(v)] || v) : '' };
       case 'tags': return { text: (v || []).map(function (t) { return C.TAGS[t]; }).filter(Boolean).join(', ') };
       case 'good': return { text: Array.isArray(v) ? (v.length ? v.map(function (g) { var x = C.GOOD.filter(function (z) { return z[0] === g; })[0]; return x ? x[1] : null; }).filter(Boolean).join(', ') : 'none') : '' };
       case 'note': case 'mustDo': case 'wantDo': return { text: v || '' };
@@ -3328,7 +3345,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
         UI.state.patternsRunning = false;
         if (!ev.data.ok) { console.error(ev.data.error); UI.rerender(); return; }
         var res = TS.app.diffConn(cache.conn, ev.data.res);
-        cache.conn = res; cache.connAt = new Date().toISOString(); cache.connStart = lastStart;
+        cache.conn = res; cache.connV = 2; cache.connAt = new Date().toISOString(); cache.connStart = lastStart;
         if (!cache.firstPatternAt && res.cards.some(function (c) { return c.status === 'confirmed' || c.status === 'emerging'; })) cache.firstPatternAt = t;
         if (ev.data.frozen) cache.backtestFrozen = ev.data.frozen;
         TS.store.save(); UI.invalidate(); UI.rerender();
@@ -3873,7 +3890,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
       content.push(optQ(e, 'healthy', YSN, 'pm', 3, 'Your definition: “' + s.healthyDefinition + '”', { extra: info }));
       content.push(optQ(e, 'cravings', YSN, 'pm', 3));
     } else if (step === 5) {
-      content.push(optQ(e, 'dayType', [['work', 'Work'], ['off', 'Off'], ['busy', 'Busy']], 'pm', 3));
+      content.push(optQ(e, 'dayType', C.DAYTYPES, 'pm', 3));
       content.push(optQ(e, 'exercise', [[false, 'No'], [true, 'Yes']], 'pm', 2));
       if (UI.settings().medsTracked) content.push(optQ(e, 'medsTaken', [[false, 'No'], [true, 'Yes']], 'pm', 2));
       var tags = e.tags || [];
@@ -3939,7 +3956,7 @@ globalThis.TS = globalThis.TS || {}; globalThis.TS.config = {"supabaseUrl": "htt
     });
     if (doneRows.length) out.push(UI.card('', UI.question('Did you do it?', null, h('div', { class: 'col', style: { gap: '16px' } }, doneRows))));
     // tomorrow's day type and must-do / like-to-do
-    out.push(UI.card('', UI.question('What kind of day is tomorrow?', 'Helps plan tomorrow', UI.answers({ labels: [['work', 'Work'], ['off', 'Off'], ['busy', 'Busy']], value: e.tomorrowDayType, cols: 3, onpick: function (v) { e.tomorrowDayType = v; commit(e, 'pm'); } }),
+    out.push(UI.card('', UI.question('What kind of day is tomorrow?', 'How much will it ask of you? Helps plan tomorrow.', UI.answers({ labels: C.DAYTYPES, value: e.tomorrowDayType, cols: 3, onpick: function (v) { e.tomorrowDayType = v; commit(e, 'pm'); } }),
       function () { delete e.tomorrowDayType; commit(e, 'pm'); UI.rerender(); })));
     var R2 = UI.R(), fT = R2.forecast[tomorrow] || {}, wT = A.windowInfo(R2, tomorrow);
     var harder = wT.inWindow || (fT.impact && C.badness6('impact', fT.impact.y) >= 4) || (fT.focus && C.badness6('focus', fT.focus.y) >= 4);
